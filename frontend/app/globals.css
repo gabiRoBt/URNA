@@ -1,5 +1,5 @@
 /*
- * Urna — visual system.
+ * URNA — visual system.
  *
  * The rule this file follows: nothing is here to impress. Every border,
  * every unit of space, every weight earns its place by making the numbers
@@ -472,7 +472,8 @@ body {
   color: var(--ink);
   cursor: pointer;
   white-space: nowrap;
-  transition: background-color 90ms ease, border-color 90ms ease;
+  transition: background-color 90ms ease, border-color 90ms ease,
+    transform 60ms ease;
 }
 
 .button:hover:not(:disabled) {
@@ -481,6 +482,15 @@ body {
 
 .button:active:not(:disabled) {
   background: var(--rule);
+  /* A pressed button moves. Colour alone is not enough: the quiet variant is
+     transparent, so on that one a background change is nearly invisible and
+     the button reads as dead. A pixel of travel is felt rather than noticed,
+     and it is the same pixel on every variant. */
+  transform: translateY(1px);
+}
+
+.button-quiet:active:not(:disabled) {
+  background: var(--accent-wash);
 }
 
 .button:disabled {

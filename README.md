@@ -1,4 +1,4 @@
-# Urna
+# URNA
 
 A no-loss prize savings pool where deposits, odds, and winnings stay encrypted, and winner selection runs on-chain over encrypted balances.
 
@@ -7,7 +7,7 @@ Built on the [Zama Protocol](https://www.zama.org) for **Developer Program Mainn
 **Live app:** _(pending)_
 **Network:** Sepolia — addresses in [`deployments/11155111.json`](deployments/11155111.json)
 
-> *Urna* is Romanian, inherited unchanged from the Latin: the vessel a lot is drawn from. The name is the mechanism. You reach in without seeing what is inside, and the vessel is opaque by construction — not a limitation of the thing, but the definition of it.
+> URNA takes its name from the Romanian *urna*, inherited unchanged from the Latin: the vessel a lot is drawn from. The name is the mechanism. You reach in without seeing what is inside, and the vessel is opaque by construction — not a limitation of the thing, but the definition of it.
 
 ---
 

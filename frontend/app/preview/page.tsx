@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * What Urna is, in one page, with no wallet and no chain.
+ * What URNA is, in one page, with no wallet and no chain.
  *
  * This was a catalogue of component states, which was useful for building the
  * interface and useless for understanding it. Someone opening it learned what
@@ -16,7 +16,7 @@ import { useState } from "react";
 
 import { AwardPanel, PoolPanel, PositionPanel } from "@/components/panels";
 import { Group, Row } from "@/components/primitives";
-import { Redacted, VantageSwitch, type Vantage } from "@/components/ObserverToggle";
+import { VantageSwitch, type Vantage } from "@/components/ObserverToggle";
 import { UrnaScene, useDrawPlayback } from "@/components/UrnaScene";
 import { Wordmark } from "@/components/Wordmark";
 
@@ -38,6 +38,16 @@ export default function PreviewPage() {
   const { phase, progress, playing, play } = useDrawPlayback();
   const [vantage, setVantage] = useState<Vantage>("holder");
   const [revealed, setRevealed] = useState<bigint | null>(null);
+
+  // The panels below are wired to real state rather than to fixed props.
+  // A control that does nothing when pressed teaches the wrong thing about
+  // the product — a visitor cannot tell an inert demo from a broken one. Here
+  // the same components respond exactly as they do against a chain; only the
+  // figures are invented.
+  const [positionRevealed, setPositionRevealed] = useState<bigint | null>(YOUR_BALANCE);
+  const [awardRevealed, setAwardRevealed] = useState<bigint | null>(null);
+  const [claimed, setClaimed] = useState(false);
+  const [disclosed, setDisclosed] = useState(false);
 
   return (
     <main className={`shell${vantage === "observer" ? " observing" : ""}`}>
@@ -128,11 +138,11 @@ export default function PreviewPage() {
       <PositionPanel
         connected
         hasPosition
-        revealed={YOUR_BALANCE}
+        revealed={positionRevealed}
         busy={null}
         vantage={vantage}
-        onReveal={() => {}}
-        onHide={() => {}}
+        onReveal={() => setPositionRevealed(YOUR_BALANCE)}
+        onHide={() => setPositionRevealed(null)}
       />
 
       <Section
@@ -176,19 +186,30 @@ export default function PreviewPage() {
 
       <AwardPanel
         drawId={4n}
-        isPublic={false}
-        hasClaimed={false}
-        revealed={YOUR_AWARD}
+        isPublic={disclosed}
+        hasClaimed={claimed}
+        revealed={awardRevealed}
         busy={null}
         vantage="holder"
-        onReveal={() => {}}
-        onClaim={() => {}}
-        onDisclose={() => {}}
+        onReveal={() => setAwardRevealed(YOUR_AWARD)}
+        onClaim={() => setClaimed(true)}
+        onDisclose={() => setDisclosed(true)}
       />
 
+      <p className="note">
+        Reveal, then make it public, and watch the panel below: it is the same
+        award seen by someone else. Nothing else on this page can move it.
+      </p>
+
+      {/*
+        The onlooker's copy of the award above, kept in step with it. Pressing
+        "Make public" in one panel and seeing the redaction lift in the other
+        is the clearest demonstration on the page: the holder decides, alone,
+        and the decision is visible from outside the moment it is made.
+      */}
       <AwardPanel
         drawId={4n}
-        isPublic={false}
+        isPublic={disclosed}
         hasClaimed
         revealed={YOUR_AWARD}
         busy={null}

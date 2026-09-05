@@ -74,7 +74,7 @@ async function main(): Promise<void> {
 
   const network = await ethers.provider.getNetwork();
   process.stdout.write(
-    `\nDeploying Urna to chain ${network.chainId} as ${deployer.address}\n\n`,
+    `\nDeploying URNA to chain ${network.chainId} as ${deployer.address}\n\n`,
   );
 
   const token = await deploy<ConfidentialTokenMock>(
