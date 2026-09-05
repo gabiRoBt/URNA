@@ -9,6 +9,13 @@ const nextConfig = {
   // so Next.js finds two lockfiles and guesses wrong about which is the root.
   outputFileTracingRoot: here,
 
+  // The floating dev-tools badge. Useful while building, wrong in a demo: it
+  // is the framework's mark sitting on top of the product's, and a reviewer
+  // watching a recording has no reason to know which is which. It never
+  // appears in a production build, so this only affects `next dev` — which is
+  // exactly where the recording is made.
+  devIndicators: false,
+
   webpack: (config, { isServer }) => {
     // Client only, deliberately. The relayer SDK ships its cryptography as
     // WebAssembly and needs `asyncWebAssembly` to load — but enabling it on
