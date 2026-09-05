@@ -150,7 +150,16 @@ async function main(): Promise<void> {
   const secret = (process.env["DEPLOYER_PRIVATE_KEY"] ?? "").trim();
   if (secret === "") throw new Error("DEPLOYER_PRIVATE_KEY is not set");
 
-  const accounts = DEPOSITS.map((_, index) => {
+  // Twelve unless told otherwise. The knob exists because the run is paid for
+  // in testnet ether that has to be asked for by hand, and a pool of eight
+  // makes the same point as a pool of twelve when the faucet is dry. The
+  // deposits are ordered so any prefix still straddles the tier threshold.
+  const count = Math.min(
+    DEPOSITS.length,
+    Math.max(1, Number(process.env["SEED_ACCOUNTS"] ?? DEPOSITS.length)),
+  );
+
+  const accounts = DEPOSITS.slice(0, count).map((_, index) => {
     const material = ethers.keccak256(
       ethers.solidityPacked(["string", "string", "uint256"], [secret, "urna/seed", index]),
     );
