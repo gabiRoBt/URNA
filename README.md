@@ -178,6 +178,24 @@ Note the direction: `fundPrize` can only **add**. There is no path that takes va
 
 **Plugging in a real source** means implementing `IYieldSource` — `depositPrincipal`, `withdrawPrincipal`, `harvest`, `pendingYield`, `totalPrincipal` — and passing it to the vault and pool at deployment. Behind that interface the pool cannot tell the difference. A Morpho or Aave adapter would live in `contracts/adapters/` beside the simulated one. The one invariant any implementation must hold: **harvesting must never touch principal**, or the pool stops being no-loss.
 
+### Why a public venue does not break confidentiality
+
+The obvious objection to plugging in Aave or Morpho is that they are public markets: whatever the pool deposits there is visible to everyone. It is visible, and it does not matter, because what goes in is the aggregate this protocol already publishes.
+
+Look at which direction the interface points. `publishPrincipal` takes a cleartext total, checks it against KMS signatures for the pool's own handle, and hands the yield source only the *difference*:
+
+```solidity
+if (cleartextTotal > previous) {
+    yieldSource.depositPrincipal(cleartextTotal - previous);
+} else {
+    yieldSource.withdrawPrincipal(previous - cleartextTotal);
+}
+```
+
+Individual deposits never reach the venue, and no adapter is ever handed a ciphertext. The venue sees a single depositor holding a single balance — the pool — and has no way to see inside it. The confidentiality boundary sits at the pool, not at the adapter, which is why `IYieldSource` speaks entirely in plaintext totals.
+
+That is also the honest reason a simulated source was enough to build against. `IYieldSource` is not a placeholder shape chosen to make testing easy; it is the shape a real venue actually needs, and it was arrived at by asking what could safely cross the boundary rather than by wrapping whichever API happened to be at hand.
+
 ---
 
 ## The constraint that shaped the architecture
@@ -266,6 +284,7 @@ A winner who wants to prove a payout can open their own award. **The pool can ne
 
 ## Known limits
 
+- **The published total can be differenced, and that is a real leak.** `requestPrincipalDisclosure` is permissionless and may be called at any time, while `_totalPrincipal` changes with every deposit and withdrawal. An observer who calls it immediately before and after someone's deposit — the `Deposited` event names the account, so the window is easy to aim at — recovers that deposit exactly, by subtraction. No cryptography fails here: the ciphertexts are sound and the KMS proof is real. The leak is in *who may ask for a snapshot, and how often*. The fix is a modifier. The published total exists to keep the yield source in step, which needs to happen once a draw cycle rather than once a block, so restricting disclosure to the operator — or to one snapshot per draw — closes the window at no cost to the protocol. It is not applied in the deployment above because those contracts are live and seeded, and redeploying would invalidate every transaction linked in [On Sepolia](#on-sepolia) for a change that could not be re-tested in the time available. It is the first thing to change next.
 - **The yield source is modelled, not connected.** See above for how a real one plugs in.
 - **The participant list only grows.** Traversal order is load-bearing across a batched walk, so compaction is only safe while no draw is sealed, and this version does not attempt it. An account that withdraws everything stays in the list carrying zero weight — one storage read per draw, and it can never win.
 - **The same account can win several tiers of one draw.** Excluding prior winners would require knowing who they are.
