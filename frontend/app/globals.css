@@ -260,6 +260,99 @@ body {
   stroke-width: 1.4;
 }
 
+/* ── The scene ──────────────────────────────────────────────────────── */
+
+/*
+ * Deliberately quiet. The composition already carries the argument — every
+ * position the same size, because nobody knows the amounts — so the styling
+ * only has to stay out of its way. Colour is spent on exactly two things:
+ * which position is yours, and which one the draw is over.
+ */
+.scene {
+  margin: 0 0 var(--space-5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.scene-svg {
+  width: 100%;
+  max-width: 300px;
+  height: auto;
+  display: block;
+}
+
+.scene-orbit {
+  stroke: var(--rule);
+  stroke-width: 1;
+  stroke-dasharray: 2 5;
+}
+
+.scene-urn {
+  stroke: var(--ink-secondary);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: stroke 220ms ease;
+}
+
+.scene-urn-active {
+  stroke: var(--accent);
+}
+
+.scene-position {
+  fill: var(--ink-tertiary);
+  transition: fill 160ms ease, r 160ms ease;
+}
+
+.scene-you {
+  fill: var(--accent);
+}
+
+.scene-you-ring {
+  stroke: var(--accent);
+  stroke-width: 1;
+  opacity: 0.35;
+}
+
+/* The marker the walk is currently over. Brief and even — every position
+   gets exactly this treatment, which is the point being made. */
+.scene-sweeping {
+  fill: var(--accent);
+}
+
+.scene-winner {
+  fill: var(--positive);
+}
+
+.scene-caption {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-secondary);
+  text-align: center;
+  max-width: 42ch;
+  text-wrap: balance;
+}
+
+/* A single pulse when a position is added, so a deposit registers as an event
+   rather than the number silently changing. */
+@keyframes scene-arrive {
+  0% { r: 0; opacity: 0; }
+  60% { r: 8; opacity: 1; }
+  100% { r: 5.5; opacity: 1; }
+}
+
+.scene-arriving {
+  animation: scene-arrive 420ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene-arriving {
+    animation: none;
+  }
+}
+
 /* ── Vantage switch ─────────────────────────────────────────────────── */
 
 /*
@@ -490,6 +583,74 @@ body {
   height: 100%;
   background: var(--accent);
   transition: width 200ms ease;
+}
+
+/* ── Explanatory sequence ───────────────────────────────────────────── */
+
+/*
+ * Numbered because the content genuinely is a sequence — each step only lands
+ * once the one before it has. Numbering something that is merely a list is the
+ * decoration this avoids.
+ */
+.explain {
+  display: flex;
+  gap: var(--space-4);
+  margin: var(--space-6) 0 var(--space-4);
+}
+
+.explain-number {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--rule-strong);
+  color: var(--ink-secondary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.explain-title {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0 0 var(--space-2);
+  text-wrap: balance;
+}
+
+.explain-body {
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--ink-secondary);
+  margin: 0;
+  max-width: 62ch;
+}
+
+.note {
+  font-size: 12.5px;
+  color: var(--ink-secondary);
+  margin: calc(var(--space-2) * -1) 0 var(--space-5);
+  padding: 0 var(--space-1);
+}
+
+.scene-controls {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+
+.preview-footer {
+  margin-top: var(--space-7);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--rule);
+  font-size: 12px;
+  color: var(--ink-tertiary);
+  text-align: center;
 }
 
 /* ── Empty state ────────────────────────────────────────────────────── */

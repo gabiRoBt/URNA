@@ -12,6 +12,7 @@ import {
 } from "@/components/panels";
 import { Button, Group, Row, Status } from "@/components/primitives";
 import { VantageSwitch, type Vantage } from "@/components/ObserverToggle";
+import { UrnaScene, useScenePhase } from "@/components/UrnaScene";
 import { deployment, isDeployed, TOKEN_DECIMALS } from "@/lib/config";
 import {
   decryptOwn,
@@ -43,6 +44,13 @@ export default function Page() {
   // because confidentiality is otherwise invisible — a pool that hides
   // balances looks exactly like one that has none.
   const [vantage, setVantage] = useState<Vantage>("holder");
+
+  // Whether a wallet is present can only be known in the browser, so it must
+  // not be read during render: the server would say "no wallet", the client
+  // might say otherwise, and the two renderings would disagree. Deferring it
+  // to an effect means the first paint matches on both sides.
+  const [walletDetected, setWalletDetected] = useState(false);
+  useEffect(() => setWalletDetected(hasWallet()), []);
 
   const { state, contracts, refresh } = useProtocol(connection);
 
@@ -101,6 +109,14 @@ export default function Page() {
 
   const observing = vantage === "observer";
 
+  const { phase, progress } = useScenePhase(
+    state.draw?.state ?? null,
+    state.draw?.tierCursor ?? 0,
+    state.draw?.indexCursor ?? 0,
+    state.draw?.participantCount ?? state.participantCount,
+    state.draw?.tierCount ?? 1,
+  );
+
   return (
     <main className={`shell${observing ? " observing" : ""}`}>
       <header className="masthead">
@@ -109,8 +125,12 @@ export default function Page() {
           <p className="masthead-subtitle">Confidential prize savings</p>
         </div>
         {connection === null ? (
-          <Button variant="primary" onClick={() => void onConnect()} disabled={!hasWallet()}>
-            {hasWallet() ? "Connect wallet" : "No wallet found"}
+          <Button
+            variant="primary"
+            onClick={() => void onConnect()}
+            disabled={!walletDetected}
+          >
+            {walletDetected ? "Connect wallet" : "No wallet found"}
           </Button>
         ) : (
           <span className="address" style={{ fontSize: 13, color: "var(--ink-secondary)" }}>
@@ -118,6 +138,18 @@ export default function Page() {
           </span>
         )}
       </header>
+
+      {/*
+        The scene sits above everything, before any number. Someone landing
+        here should understand what the thing is before they are asked to read
+        a balance — and the composition says it faster than the copy can.
+      */}
+      <UrnaScene
+        participants={state.draw?.participantCount ?? state.participantCount}
+        youIndex={state.balanceHandle !== null ? 0 : null}
+        phase={phase}
+        progress={progress}
+      />
 
       {connection !== null && (
         <Group
