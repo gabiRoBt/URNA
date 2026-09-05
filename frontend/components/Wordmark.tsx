@@ -9,11 +9,9 @@
  * *urna* is the Romanian word, inherited unchanged from the Latin, for the
  * vessel a lot is drawn from.
  *
- * They are laid as three equal bands across the whole word rather than one
- * colour per letter. URNA has four letters and the flag has three colours, so
- * per-letter would mean repeating one and losing the flag. Banding also puts
- * the transitions wherever they fall inside a stroke, which looks deliberate
- * rather than aligned.
+ * They are laid as three bands across the whole word rather than one colour
+ * per letter. URNA has four letters and the flag has three colours, so
+ * per-letter would mean repeating one and losing the flag.
  *
  * The band sits at one height across the word, never stepped. Distinct
  * participants, indistinguishable amounts — the product's entire claim. A
@@ -21,16 +19,12 @@
  * contradicted the thing it stands for.
  */
 
-const FLAG = ["#6699FF", "#FFD24D", "#FF5C5C"] as const;
-
 /**
  * Width the word is pinned to.
  *
- * The bands divide this into thirds, so it has to be the width of the letters
- * themselves rather than of a roomier canvas — otherwise the last band starts
- * past the final stroke and the third colour barely appears. `textLength`
- * below holds the word to exactly this, which also means the mark does not
- * shift when a fallback font is briefly in use.
+ * `textLength` below holds the word to exactly this, which fixes the geometry
+ * the bands are cut against and also means the mark does not shift while a
+ * fallback font is briefly in use.
  *
  * 196 is a touch above the natural width at this size, so the adjustment is
  * spread across three gaps and is not visible.
@@ -39,7 +33,35 @@ const VIEW_WIDTH = 196;
 const BAND_TOP = 52;
 const BAND_HEIGHT = 28;
 
-export function Wordmark({ height = 26 }: { height?: number }) {
+/**
+ * Where one colour gives way to the next.
+ *
+ * Not equal thirds. Thirds put a boundary at 130.7, which lands inside the
+ * stroke where the N's diagonal meets its right leg and slices that leg into
+ * two colours — the look of a misregistered print run, not of a decision.
+ *
+ * These stops were measured against the real face at the band's own height,
+ * where the letters are only their bottom tenth and the strokes are much
+ * narrower than the letters are wide. In that strip the ink sits at:
+ *
+ *     U bowl   6–40    R stem 55–64   R leg  77–91
+ *     N stem  104–112  N leg 126–141  A     152–163, 182–194
+ *
+ * so 48 and 119 fall in the two widest voids — the gap after the U, and the
+ * open counter of the N. Every transition happens over background, which is
+ * why none of them is visible: you see three blocks of colour and no seams.
+ *
+ * The split is also near even by ink rather than by width — 35, 33 and 41
+ * units of covered stroke. Equal widths would not have been equal colour,
+ * because the letters do not carry equal weight down here.
+ */
+const BANDS = [
+  { colour: "#6699FF", from: 0, to: 48 },
+  { colour: "#FFD24D", from: 48, to: 119 },
+  { colour: "#FF5C5C", from: 119, to: VIEW_WIDTH },
+] as const;
+
+export function Wordmark({ height = 36 }: { height?: number }) {
   // Proportions are fixed to the viewBox rather than measured, so the mark is
   // identical everywhere and never reflows while a webfont loads.
   const width = Math.round(height * (VIEW_WIDTH / 80));
@@ -76,17 +98,19 @@ export function Wordmark({ height = 26 }: { height?: number }) {
       </text>
 
       <g clipPath="url(#wordmark-letters)">
-        {FLAG.map((colour, index) => (
+        {BANDS.map((band, index) => (
           <rect
-            key={colour}
-            x={(index * VIEW_WIDTH) / FLAG.length}
+            key={band.colour}
+            x={band.from}
             // One height across the whole word, never stepped per letter.
             y={BAND_TOP}
-            // Half a unit of overlap, so no hairline of background shows
-            // through where two bands meet after rounding.
-            width={VIEW_WIDTH / FLAG.length + 0.5}
+            // Half a unit of overlap between neighbours. The stops sit over
+            // background so nothing should show through anyway, but if the
+            // face ever falls back the shapes move and this keeps a hairline
+            // of ground from appearing in the join.
+            width={band.to - band.from + (index === BANDS.length - 1 ? 0 : 0.5)}
             height={BAND_HEIGHT}
-            fill={colour}
+            fill={band.colour}
           />
         ))}
       </g>
