@@ -1,4 +1,5 @@
 import { ethers, fhevm } from "hardhat";
+import type { Wallet } from "ethers";
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -72,8 +73,15 @@ const PRIZE = 4_000n * UNIT;
  */
 const SELF_SENT_GAS = 1_600_000n;
 
-/** Gas for a plain transfer, which is what the refund at the end costs. */
-const TRANSFER_GAS = 21_000n;
+/**
+ * Gas each account keeps back after depositing, in case it turns out to have
+ * won and has to disclose. Reclaimed at the end either way.
+ *
+ * The reserve is why the refund happens immediately rather than after the
+ * draw: twelve full fundings outstanding at once is most of the operator's
+ * balance, twelve reserves is a rounding error.
+ */
+const RESERVE_GAS = 250_000n;
 
 interface Receipt {
   what: string;
@@ -158,6 +166,40 @@ async function main(): Promise<void> {
 
   const funding = feeCap * SELF_SENT_GAS;
 
+  /**
+   * Gas a refund to the operator costs.
+   *
+   * Not the flat 21,000 a transfer to a bare account costs: this operator's
+   * account is delegated under EIP-7702 — its code is an `0xef0100`
+   * designator pointing at a smart-account implementation — so paying it runs
+   * code. Assuming 21,000 is what made the first attempt at this run out of
+   * gas and revert, having already completed the deposit it was cleaning up
+   * after. Ask the chain, and leave room.
+   */
+  const refundGas = await ethers.provider
+    .estimateGas({ from: accounts[0]!.address, to: operator.address, value: 1n })
+    .then((gas) => (gas * 3n) / 2n)
+    .catch(() => 60_000n);
+
+  /** Returns everything an account holds beyond `keep`, if it is worth moving. */
+  const reclaim = async (account: Wallet, keep: bigint): Promise<void> => {
+    const left = await ethers.provider.getBalance(account.address);
+    const refund = left - keep - feeCap * refundGas;
+    if (refund <= 0n) return;
+    await send(
+      "refund",
+      () =>
+        account.sendTransaction({
+          to: operator.address,
+          value: refund,
+          gasLimit: refundGas,
+          maxFeePerGas: feeCap,
+          maxPriorityFeePerGas: priority,
+        }),
+      false,
+    );
+  };
+
   // Accounts are funded one at a time and swept as soon as they have
   // deposited, so only one funding is outstanding at any moment. What the run
   // actually needs is the operator's own gas — a transfer, a mint and a
@@ -227,25 +269,11 @@ async function main(): Promise<void> {
 
     await send("deposit", () => pool.connect(account).deposit(input.handles[0]!, input.inputProof));
 
-    // Give back what was not spent. Funding has to be sized against the worst
-    // case the network will accept, so most of it comes back; stranding that
-    // twelve times over would cost more than the rest of the run.
-    const left = await ethers.provider.getBalance(account.address);
-    const refund = left - feeCap * TRANSFER_GAS;
-    if (refund > 0n) {
-      await send(
-        "refund",
-        () =>
-          account.sendTransaction({
-            to: operator.address,
-            value: refund,
-            gasLimit: TRANSFER_GAS,
-            maxFeePerGas: feeCap,
-            maxPriorityFeePerGas: priority,
-          }),
-        false,
-      );
-    }
+    // Give back what was not spent, keeping only the disclosure reserve.
+    // Funding has to be sized against the worst case the network will accept,
+    // so most of it comes back; stranding that twelve times over would cost
+    // more than the rest of the run.
+    await reclaim(account, feeCap * RESERVE_GAS);
   }
 
   detail(`participants now ${await ledger.participantCount()}`);
@@ -314,6 +342,14 @@ async function main(): Promise<void> {
     await send("disclose", () => disclosure.connect(account).disclose(drawId));
     detail(`${opener.address} is now publicly verifiable at ${opener.award}`);
   }
+
+  // ── Reclaim ─────────────────────────────────────────────────────────────
+
+  // The disclosure reserves, and anything an earlier run left behind. The
+  // seeded accounts have no further work to do; leaving testnet ether in a
+  // dozen addresses nobody will ever open is just losing it.
+  step("Reclaiming the reserves");
+  for (const account of accounts) await reclaim(account, 0n);
 
   // ── Record ──────────────────────────────────────────────────────────────
 
