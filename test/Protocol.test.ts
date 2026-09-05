@@ -334,6 +334,63 @@ describe("Protocol properties", function () {
     });
   });
 
+  describe("Publishing the total", function () {
+    /**
+     * The pool publishes one aggregate on purpose. The danger is not that
+     * aggregate but a stream of them: two totals taken either side of a
+     * single deposit differ by exactly that deposit, and `Deposited` names
+     * the account that moved. These check that a snapshot cannot be aimed.
+     */
+
+    it("cannot be snapshotted on both sides of a deposit", async function () {
+      const protocol = await deployProtocol({});
+
+      await depositAs(protocol, protocol.participants[0]!, 1_000n);
+      await protocol.pool.requestPrincipalDisclosure();
+
+      // The attack, in two lines: let someone deposit, then take a second
+      // reading and subtract. The second reading is what has to fail.
+      await depositAs(protocol, protocol.participants[1]!, 7_777n);
+
+      await expect(protocol.pool.requestPrincipalDisclosure()).to.be.revertedWithCustomError(
+        protocol.pool,
+        "DisclosureTooSoon",
+      );
+    });
+
+    it("lets a failed publication retry against the same handle", async function () {
+      const protocol = await deployProtocol({});
+
+      await depositAs(protocol, protocol.participants[0]!, 1_000n);
+      await protocol.pool.requestPrincipalDisclosure();
+
+      // Nothing has moved, so this asks to disclose a handle that is already
+      // public. It reveals nothing new and must not be made to wait an hour.
+      await expect(protocol.pool.requestPrincipalDisclosure()).to.not.be.reverted;
+    });
+
+    it("allows a fresh snapshot once the interval has passed", async function () {
+      const protocol = await deployProtocol({});
+
+      await depositAs(protocol, protocol.participants[0]!, 1_000n);
+      await protocol.pool.requestPrincipalDisclosure();
+      await depositAs(protocol, protocol.participants[1]!, 7_777n);
+
+      await advanceTime(Number(await protocol.pool.DISCLOSURE_INTERVAL()));
+
+      await expect(protocol.pool.requestPrincipalDisclosure()).to.not.be.reverted;
+    });
+
+    it("refuses to disclose a total that does not exist yet", async function () {
+      const protocol = await deployProtocol({});
+
+      await expect(protocol.pool.requestPrincipalDisclosure()).to.be.revertedWithCustomError(
+        protocol.pool,
+        "NoPrincipalYet",
+      );
+    });
+  });
+
   describe("Yield accounting", function () {
     it("never pays a prize out of principal", async function () {
       const protocol = await fundedProtocol([1_000_000n]);

@@ -100,6 +100,14 @@ Three aggregates are public, and each is public for a reason rather than by omis
 
 **Participation.** Addresses that deposit are visible, because transactions are. Amounts are not.
 
+**One aggregate is safe; a stream of them is not.** This was very nearly the hole in the whole design. The total changes on every deposit and withdrawal, and `Deposited` names the account that moved — so an observer who took a reading immediately before and immediately after a chosen deposit recovered it exactly, by subtraction. Nothing cryptographic failed in that: the ciphertexts held and the KMS proof was real. What failed was letting anyone ask for a reading whenever they liked.
+
+`requestPrincipalDisclosure` is therefore rate-limited: at most one new snapshot per hour, enforced on-chain. The point is to take away the *aiming*. A reading can no longer be placed around a transaction, so a difference now reveals the pool's net change over an hour rather than one account's deposit.
+
+It is still rate-limited rather than restricted, and that is the deliberate choice. Making it owner-only would have closed the window for everyone except the single party with the best view of who is depositing. The gate is **how often**, not **by whom** — the guarantee is meant to hold against this pool's operator too.
+
+The residue is stated rather than papered over: if one account is the only one to move in a whole interval, that hour's net change is its amount. That much is inherent in publishing a total at all, and no arrangement of this feature removes it.
+
 What is *not* leaked is the thing that matters: the mapping from any of those aggregates to an individual position.
 
 ### Seeing the confidentiality
@@ -228,7 +236,7 @@ Three layers, each answering a different question.
 ```bash
 npm run simulate:fairness   # 23 checks, exhaustive fairness
 npm run simulate:hcu        # 8 checks, batch budget
-npm test                    # 27 tests
+npm test                    # 31 tests
 npm run typecheck
 ```
 
@@ -284,7 +292,7 @@ A winner who wants to prove a payout can open their own award. **The pool can ne
 
 ## Known limits
 
-- **The published total can be differenced, and that is a real leak.** `requestPrincipalDisclosure` is permissionless and may be called at any time, while `_totalPrincipal` changes with every deposit and withdrawal. An observer who calls it immediately before and after someone's deposit — the `Deposited` event names the account, so the window is easy to aim at — recovers that deposit exactly, by subtraction. No cryptography fails here: the ciphertexts are sound and the KMS proof is real. The leak is in *who may ask for a snapshot, and how often*. The fix is a modifier. The published total exists to keep the yield source in step, which needs to happen once a draw cycle rather than once a block, so restricting disclosure to the operator — or to one snapshot per draw — closes the window at no cost to the protocol. It is not applied in the deployment above because those contracts are live and seeded, and redeploying would invalidate every transaction linked in [On Sepolia](#on-sepolia) for a change that could not be re-tested in the time available. It is the first thing to change next.
+- **A quiet hour still leaks.** Snapshots of the pool's total are rate-limited so they cannot be taken either side of a chosen deposit, but if one account is the only one to move during a whole interval, the difference between two readings is that account's amount. Inherent in publishing a total at all; see [What leaks, stated plainly](#what-leaks-stated-plainly).
 - **The yield source is modelled, not connected.** See above for how a real one plugs in.
 - **The participant list only grows.** Traversal order is load-bearing across a batched walk, so compaction is only safe while no draw is sealed, and this version does not attempt it. An account that withdraws everything stays in the list carrying zero weight — one storage read per draw, and it can never win.
 - **The same account can win several tiers of one draw.** Excluding prior winners would require knowing who they are.

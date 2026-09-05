@@ -32,6 +32,11 @@ import {IYieldSource} from "../interfaces/IYieldSource.sol";
 /// confidential protocol draws, and drawing it explicitly is better than
 /// hiding a decryption somewhere less visible.
 ///
+/// One aggregate is safe. A *stream* of them is not: two totals taken either
+/// side of a single deposit differ by exactly that deposit. So snapshots are
+/// rate-limited, and `requestPrincipalDisclosure` carries the argument for
+/// how and why.
+///
 /// ## Withdrawals during a draw
 ///
 /// Always allowed. A prize pool that locks deposits to run its own lottery has
@@ -57,12 +62,33 @@ contract ConfidentialPrizePool is ZamaEthereumConfig, Ownable2Step {
     /// @notice Total principal last published to the yield source.
     uint64 public publishedPrincipal;
 
+    /// @notice Shortest gap between two snapshots of the encrypted total.
+    ///
+    /// @dev The number that stops the total from being differenced. See
+    ///      `requestPrincipalDisclosure`.
+    ///
+    ///      Deliberately a constant with no setter. An interval the owner
+    ///      could shorten is one an owner can remove, and the guarantee here
+    ///      is meant to hold against this contract's operator as much as
+    ///      against anyone else.
+    uint64 public constant DISCLOSURE_INTERVAL = 1 hours;
+
+    /// @notice When the last new snapshot was taken.
+    uint64 public lastDisclosureAt;
+
+    /// @dev The handle that snapshot was of. Re-marking it costs nothing and
+    ///      reveals nothing, so it is exempt from the interval.
+    bytes32 private _lastDisclosed;
+
     event Deposited(address indexed account);
     event Withdrawn(address indexed account);
     event PrincipalPublished(uint64 total, uint64 previous);
+    event PrincipalDisclosureRequested(uint64 at);
 
     error NothingDeposited(address account);
     error PrincipalUnchanged(uint64 total);
+    error NoPrincipalYet();
+    error DisclosureTooSoon(uint64 allowedAt);
 
     constructor(
         address owner_,
@@ -140,10 +166,57 @@ contract ConfidentialPrizePool is ZamaEthereumConfig, Ownable2Step {
     }
 
     /// @notice Makes the pool's current total principal decryptable.
+    ///
     /// @dev Separate from publishing because decryption happens off-chain
     ///      between the two: this marks the handle, the KMS produces the
     ///      cleartext, and `publishPrincipal` brings it back with proof.
+    ///
+    ///      ## Why this is rate-limited
+    ///
+    ///      Without an interval, publishing the total leaks the individual
+    ///      amounts it is made of. The total changes on every deposit and
+    ///      withdrawal, and `Deposited` names the account that moved, so an
+    ///      observer could take a snapshot immediately before and after a
+    ///      chosen deposit and recover it exactly by subtraction. Nothing
+    ///      cryptographic fails in that attack: the ciphertexts hold and the
+    ///      KMS proof is real. What fails is letting anyone ask for a
+    ///      snapshot whenever they like.
+    ///
+    ///      An interval takes away the aiming. A snapshot can no longer be
+    ///      placed around a transaction, only taken on a schedule nobody
+    ///      controls, so what a difference reveals is the pool's *net* change
+    ///      over an hour rather than one account's deposit.
+    ///
+    ///      It does not reduce the residue to nothing, and claiming otherwise
+    ///      would be dishonest: if one account is the only one to move in a
+    ///      whole interval, that hour's net change is its amount. That much
+    ///      is inherent in publishing a total at all, and the pool says so
+    ///      out loud rather than implying a total can be public and its parts
+    ///      perfectly private at the same time.
+    ///
+    ///      Still permissionless, and deliberately so. The gate is *how
+    ///      often*, not *by whom* — an owner-only version would close the
+    ///      window for everyone except the one party with the best view of
+    ///      who is depositing.
     function requestPrincipalDisclosure() external {
+        if (!FHE.isInitialized(_totalPrincipal)) revert NoPrincipalYet();
+
+        bytes32 current = euint64.unwrap(_totalPrincipal);
+
+        // Re-marking the handle already disclosed is exempt. It is idempotent
+        // and reveals nothing new, and making a failed publication wait an
+        // hour to be retried would turn a hiccup into an outage.
+        if (current != _lastDisclosed) {
+            uint64 allowedAt = lastDisclosureAt + DISCLOSURE_INTERVAL;
+            if (lastDisclosureAt != 0 && block.timestamp < allowedAt) {
+                revert DisclosureTooSoon(allowedAt);
+            }
+
+            lastDisclosureAt = uint64(block.timestamp);
+            _lastDisclosed = current;
+            emit PrincipalDisclosureRequested(lastDisclosureAt);
+        }
+
         FHE.makePubliclyDecryptable(_totalPrincipal);
     }
 
