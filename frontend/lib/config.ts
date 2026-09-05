@@ -36,6 +36,20 @@ export const SEPOLIA: Deployment = {
 
 export const deployment = SEPOLIA;
 
+/**
+ * Where the interface reads from when no wallet is connected.
+ *
+ * The pool's total, the number of positions and the state of a draw are
+ * public by design. Requiring a wallet before showing them made the page look
+ * empty to anyone who merely opened it — a confidential pool that appears to
+ * hold nothing argues against itself.
+ *
+ * Deliberately outside the block above: `scripts/deploy.ts` rewrites that one
+ * wholesale, so anything added to it disappears at the next deployment.
+ */
+export const RPC_URL =
+  process.env["NEXT_PUBLIC_RPC_URL"] ?? "https://ethereum-sepolia-rpc.publicnode.com";
+
 /** Whether the interface has been pointed at a real deployment yet. */
 export const isDeployed = deployment.pool !== UNSET;
 

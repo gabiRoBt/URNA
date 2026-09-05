@@ -35,6 +35,33 @@ Deployed and exercised end to end against the real coprocessors, not only in moc
 | `SimulatedYieldSource` | [`0xC98b27c6a8A447615d51fFd348238b31Ae2AB1d9`](https://sepolia.etherscan.io/address/0xC98b27c6a8A447615d51fFd348238b31Ae2AB1d9) | Modelled venue |
 | `ConfidentialTokenMock` | [`0x3C26B14e6832fb40e8ACBEb1a5b7e2C1D7dD90Ad`](https://sepolia.etherscan.io/address/0x3C26B14e6832fb40e8ACBEb1a5b7e2C1D7dD90Ad) | Test asset, open minting |
 
+### A draw that actually ran
+
+Draw 2 settled over 13 positions against the live coprocessors. Every step below is on-chain and clickable.
+
+| | |
+|---|---|
+| Positions | 13 |
+| Deposits, public total | 80,100 cUSD |
+| Draw weight | 116,000 |
+| Prize | 4,000 cUSD, split 50 / 30 / 20 across three tiers |
+| Selection | 6 transactions |
+
+The twelve deposits were deliberately uneven and straddle the tier threshold. They sum to the 80,100 published above, while the draw weight is 116,000. **That gap is the tier bonus, and it is the one number on this page worth staring at.** Six positions sit at or above an encrypted threshold and carry 1.5x, so the excess is exactly half of what those six hold — and neither public figure says which six they are.
+
+| Step | Transaction | Gas |
+|---|---|---|
+| A deposit, encrypted in the browser before it was sent | [0x9faea3fb…d8ba83](https://sepolia.etherscan.io/tx/0x9faea3fbc26893c034668a60a42b6f7466660a5e43a10840a001bd177ed8ba83) | 955,204 |
+| Publishing the pool's total, checked against KMS signatures | [0xbfd852c3…6622ff](https://sepolia.etherscan.io/tx/0xbfd852c36561bec1e19789cac43c90869b878c2d84ce61a6a5f0929c8d6622ff) | 410,901 |
+| Sealing the snapshot — O(1), whatever its size | [0xf30ce175…da6490](https://sepolia.etherscan.io/tx/0xf30ce175d61d48330dbd678a83cfd741560fb65b35c9ac36a3351c1303da6490) | 181,951 |
+| Opening: the draw point is generated here, and never decrypted | [0xc77017dd…a288e6](https://sepolia.etherscan.io/tx/0xc77017dd7680520cd95871773fc55157099bcd4cf0b089b729d2984b93a288e6) | 333,991 |
+| The selection walk, first of 6 slices | [0x95e7b033…e92e8e](https://sepolia.etherscan.io/tx/0x95e7b033ce56b539baaa4e4c1635c0f831aada3b16ea9bbd97102ca77de92e8e) | 2,535,424 |
+| A winner opening their own award | [0x9384cded…20c01a](https://sepolia.etherscan.io/tx/0x9384cdedfae2606a2a33aab23923e8d4e78cc2f09bd7e87bf268222b5d20c01a) | 90,543 |
+
+Three accounts were paid, one per tier, and their awards sum to exactly the prize. Only one chose to be seen: [`0x8a53…c41D`](https://sepolia.etherscan.io/address/0x8a53BFBc206878bA91420Ea00e867D3fDdFCc41D) at 800 cUSD, now publicly verifiable through the `DisclosureRegistry`. The other two awards sit on-chain and unreadable — by onlookers, by the operator, and by us.
+
+One of the 13 positions is an account emptied by an earlier run. It carries zero weight and can never win, and it is still listed because the participant list only grows — see [Known limits](#known-limits).
+
 `ConfidentialTokenMock` mints on request, so a reviewer can fund themselves and run the whole cycle without asking anyone for an asset.
 
 ---

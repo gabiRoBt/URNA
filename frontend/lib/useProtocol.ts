@@ -10,10 +10,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Contract, type BrowserProvider } from "ethers";
+import { Contract, JsonRpcProvider, type BrowserProvider } from "ethers";
 
 import { ABI } from "./abi";
-import { deployment, isDeployed } from "./config";
+import { deployment, isDeployed, RPC_URL } from "./config";
 import type { Connection } from "./wallet";
 
 /** Mirrors `IDrawEngine.DrawState`. */
@@ -80,6 +80,30 @@ export interface Contracts {
   readonly token: Contract;
 }
 
+/**
+ * The same contracts, bound to a plain RPC connection instead of a wallet.
+ *
+ * Only the aggregates are read through this — the total, the position count,
+ * the state of a draw — and every one of them is public on-chain. Nothing
+ * here can decrypt anything: reading a ciphertext still needs an ACL entry
+ * and a signature, and this reader holds neither.
+ */
+export function buildPublicContracts(): Contracts {
+  const runner = new JsonRpcProvider(RPC_URL, deployment.chainId, {
+    // The chain is known and fixed, so there is nothing to discover and no
+    // reason to spend a round trip discovering it.
+    staticNetwork: true,
+  });
+  return {
+    pool: new Contract(deployment.pool, ABI.ConfidentialPrizePool, runner),
+    engine: new Contract(deployment.engine, ABI.DrawEngine, runner),
+    vault: new Contract(deployment.vault, ABI.PrizeVault, runner),
+    ledger: new Contract(deployment.ledger, ABI.TicketLedger, runner),
+    disclosure: new Contract(deployment.disclosure, ABI.DisclosureRegistry, runner),
+    token: new Contract(deployment.token, ABI.ConfidentialTokenMock, runner),
+  };
+}
+
 export function buildContracts(connection: Connection): Contracts {
   const runner = connection.signer;
   return {
@@ -102,8 +126,12 @@ export function useProtocol(connection: Connection | null) {
     [connection],
   );
 
+  // What the public half of the page is read through. A wallet, once there is
+  // one; a bare RPC connection otherwise.
+  const reader = useMemo(() => contracts ?? buildPublicContracts(), [contracts]);
+
   const refresh = useCallback(async () => {
-    if (connection === null || contracts === null || !isDeployed) {
+    if (!isDeployed) {
       setState(EMPTY);
       return;
     }
@@ -112,40 +140,50 @@ export function useProtocol(connection: Connection | null) {
     setError(null);
 
     try {
-      const [balanceHandle, publishedPrincipal, unallocatedPrize, participantCount] =
-        await Promise.all([
-          contracts.pool["balanceOf"]!(connection.address) as Promise<string>,
-          contracts.pool["publishedPrincipal"]!() as Promise<bigint>,
-          contracts.vault["unallocatedPrize"]!() as Promise<bigint>,
-          contracts.ledger["participantCount"]!() as Promise<bigint>,
-        ]);
+      const [publishedPrincipal, unallocatedPrize, participantCount] = await Promise.all([
+        reader.pool["publishedPrincipal"]!() as Promise<bigint>,
+        reader.vault["unallocatedPrize"]!() as Promise<bigint>,
+        reader.ledger["participantCount"]!() as Promise<bigint>,
+      ]);
 
-      const drawId = (await contracts.engine["currentDrawId"]!()) as bigint;
-      const draw = drawId === 0n ? null : await readDraw(contracts, drawId);
+      const drawId = (await reader.engine["currentDrawId"]!()) as bigint;
+      const draw = drawId === 0n ? null : await readDraw(reader, drawId);
 
+      // Everything from here needs an account to be about. Without one the
+      // page shows the pool and stops, which is exactly what an onlooker is
+      // entitled to see.
+      let balanceHandle: string | null = null;
       let awardHandle: string | null = null;
       let awardIsPublic = false;
       let hasClaimed = false;
 
-      if (drawId !== 0n) {
-        const raw = (await contracts.vault["awardOf"]!(
-          drawId,
-          connection.address,
-        )) as string;
-        awardHandle = raw === ZERO_HANDLE ? null : raw;
+      if (connection !== null && contracts !== null) {
+        const raw = (await contracts.pool["balanceOf"]!(connection.address)) as string;
+        balanceHandle = raw === ZERO_HANDLE ? null : raw;
 
-        if (awardHandle !== null) {
-          const [visibility, claimed] = await Promise.all([
-            contracts.disclosure["visibilityOf"]!(drawId, connection.address) as Promise<bigint>,
-            contracts.vault["hasClaimed"]!(drawId, connection.address) as Promise<boolean>,
-          ]);
-          awardIsPublic = visibility === 1n;
-          hasClaimed = claimed;
+        if (drawId !== 0n) {
+          const award = (await contracts.vault["awardOf"]!(
+            drawId,
+            connection.address,
+          )) as string;
+          awardHandle = award === ZERO_HANDLE ? null : award;
+
+          if (awardHandle !== null) {
+            const [visibility, claimed] = await Promise.all([
+              contracts.disclosure["visibilityOf"]!(
+                drawId,
+                connection.address,
+              ) as Promise<bigint>,
+              contracts.vault["hasClaimed"]!(drawId, connection.address) as Promise<boolean>,
+            ]);
+            awardIsPublic = visibility === 1n;
+            hasClaimed = claimed;
+          }
         }
       }
 
       setState({
-        balanceHandle: balanceHandle === ZERO_HANDLE ? null : balanceHandle,
+        balanceHandle,
         awardHandle,
         awardIsPublic,
         hasClaimed,
@@ -159,7 +197,7 @@ export function useProtocol(connection: Connection | null) {
     } finally {
       setLoading(false);
     }
-  }, [connection, contracts]);
+  }, [connection, contracts, reader]);
 
   useEffect(() => {
     void refresh();
