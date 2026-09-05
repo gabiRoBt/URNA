@@ -1,0 +1,266 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+
+import {
+  AwardPanel,
+  DrawPanel,
+  FaucetPanel,
+  MovePanel,
+  PoolPanel,
+  PositionPanel,
+} from "@/components/panels";
+import { Button, Group, Row, Status } from "@/components/primitives";
+import { deployment, isDeployed, TOKEN_DECIMALS } from "@/lib/config";
+
+/** What the faucet hands out per click. */
+const FAUCET_AMOUNT = 10_000n * 10n ** BigInt(TOKEN_DECIMALS);
+import {
+  decryptOwn,
+  decryptPublic,
+  encryptAmount,
+  resetAuthorisation,
+  type TypedDataSigner,
+} from "@/lib/fhevm";
+import { shortAddress } from "@/lib/format";
+import { useProtocol } from "@/lib/useProtocol";
+import {
+  connect,
+  hasWallet,
+  readableError,
+  switchToDeploymentChain,
+  type Connection,
+} from "@/lib/wallet";
+
+export default function Page() {
+  const [connection, setConnection] = useState<Connection | null>(null);
+  const [notice, setNotice] = useState<{ text: string; isError: boolean } | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const { state, contracts, refresh } = useProtocol(connection);
+
+  // Revealed plaintext lives in memory only, and is dropped whenever the
+  // underlying handle changes. Persisting it anywhere would undo the point of
+  // keeping the value sealed on-chain.
+  const [revealedBalance, setRevealedBalance] = useState<bigint | null>(null);
+  const [revealedAward, setRevealedAward] = useState<bigint | null>(null);
+
+  useEffect(() => setRevealedBalance(null), [state.balanceHandle]);
+  useEffect(() => setRevealedAward(null), [state.awardHandle]);
+
+  const run = useCallback(
+    async (label: string, action: () => Promise<string | void>) => {
+      setBusy(label);
+      setNotice(null);
+      try {
+        const message = await action();
+        if (typeof message === "string") setNotice({ text: message, isError: false });
+        await refresh();
+      } catch (error: unknown) {
+        setNotice({ text: readableError(error), isError: true });
+      } finally {
+        setBusy(null);
+      }
+    },
+    [refresh],
+  );
+
+  const onConnect = useCallback(async () => {
+    setNotice(null);
+    try {
+      const next = await connect();
+      resetAuthorisation();
+      setConnection(next);
+      if (next.chainId !== deployment.chainId) {
+        setNotice({
+          text: `Wallet is on chain ${next.chainId}. Switch to ${deployment.chainName} to continue.`,
+          isError: true,
+        });
+      }
+    } catch (error: unknown) {
+      setNotice({ text: readableError(error), isError: true });
+    }
+  }, []);
+
+  const signTyped = useCallback<TypedDataSigner>(
+    (domain, types, message) => {
+      if (connection === null) return Promise.reject(new Error("not connected"));
+      return connection.signer.signTypedData(domain, types, message);
+    },
+    [connection],
+  );
+
+  const wrongChain = connection !== null && connection.chainId !== deployment.chainId;
+
+  return (
+    <main className="shell">
+      <header className="masthead">
+        <div>
+          <h1 className="masthead-title">Sortis</h1>
+          <p className="masthead-subtitle">Confidential prize savings</p>
+        </div>
+        {connection === null ? (
+          <Button variant="primary" onClick={() => void onConnect()} disabled={!hasWallet()}>
+            {hasWallet() ? "Connect wallet" : "No wallet found"}
+          </Button>
+        ) : (
+          <span className="address" style={{ fontSize: 13, color: "var(--ink-secondary)" }}>
+            {shortAddress(connection.address)}
+          </span>
+        )}
+      </header>
+
+      {!isDeployed && (
+        <Group caption="Not configured">
+          <Status tone="error">
+            No deployment address is set. Run the deploy script, then fill in{" "}
+            <span className="mono">frontend/lib/config.ts</span>.
+          </Status>
+        </Group>
+      )}
+
+      {wrongChain && (
+        <Group caption="Network">
+          <Row
+            label="Wrong network"
+            sublabel={`This deployment lives on ${deployment.chainName}.`}
+            value={<Button onClick={() => void switchToDeploymentChain()}>Switch</Button>}
+          />
+        </Group>
+      )}
+
+      {notice !== null && (
+        <Group>
+          <Status tone={notice.isError ? "error" : "default"}>{notice.text}</Status>
+        </Group>
+      )}
+
+      <PositionPanel
+        connected={connection !== null}
+        hasPosition={state.balanceHandle !== null}
+        revealed={revealedBalance}
+        busy={busy}
+        onHide={() => setRevealedBalance(null)}
+        onReveal={() =>
+          void run("reveal", async () => {
+            if (connection === null || state.balanceHandle === null) return;
+            setRevealedBalance(
+              await decryptOwn(
+                connection.injected,
+                state.balanceHandle,
+                deployment.pool,
+                connection.address,
+                signTyped,
+              ),
+            );
+          })
+        }
+      />
+
+      {connection !== null && contracts !== null && (
+        <FaucetPanel
+          busy={busy}
+          amount={FAUCET_AMOUNT}
+          onMint={() =>
+            void run("faucet", async () => {
+              await (
+                await contracts.token["mint"]!(connection.address, FAUCET_AMOUNT)
+              ).wait();
+
+              // Approving here rather than at deposit time means the reviewer
+              // signs once and then deposits freely, instead of hitting an
+              // operator prompt on their first attempt.
+              const deadline = Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60;
+              await (
+                await contracts.token["setOperator"]!(deployment.pool, deadline)
+              ).wait();
+
+              return "Test tokens minted, pool approved.";
+            })
+          }
+        />
+      )}
+
+      {connection !== null && contracts !== null && (
+        <MovePanel
+          busy={busy}
+          hasPosition={state.balanceHandle !== null}
+          onDeposit={(amount) =>
+            void run("deposit", async () => {
+              const { handle, proof } = await encryptAmount(
+                connection.injected,
+                deployment.pool,
+                connection.address,
+                amount,
+              );
+              await (await contracts.pool["deposit"]!(handle, proof)).wait();
+              return "Deposit confirmed.";
+            })
+          }
+          onWithdraw={(amount) =>
+            void run("withdraw", async () => {
+              const { handle, proof } = await encryptAmount(
+                connection.injected,
+                deployment.pool,
+                connection.address,
+                amount,
+              );
+              await (await contracts.pool["withdraw"]!(handle, proof)).wait();
+              return "Withdrawal confirmed.";
+            })
+          }
+        />
+      )}
+
+      <PoolPanel
+        principal={state.publishedPrincipal}
+        prize={state.unallocatedPrize}
+        participants={state.participantCount}
+      />
+
+      <DrawPanel draw={state.draw} />
+
+      {state.awardHandle !== null && connection !== null && contracts !== null && state.draw !== null && (
+        <AwardPanel
+          drawId={state.draw.drawId}
+          isPublic={state.awardIsPublic}
+          hasClaimed={state.hasClaimed}
+          revealed={revealedAward}
+          busy={busy}
+          onReveal={() =>
+            void run("reveal-award", async () => {
+              const handle = state.awardHandle!;
+              setRevealedAward(
+                state.awardIsPublic
+                  ? await decryptPublic(connection.injected, handle)
+                  : await decryptOwn(
+                      connection.injected,
+                      handle,
+                      deployment.vault,
+                      connection.address,
+                      signTyped,
+                    ),
+              );
+            })
+          }
+          onClaim={() =>
+            void run("claim", async () => {
+              await (await contracts.vault["claim"]!(state.draw!.drawId)).wait();
+              return "Award claimed.";
+            })
+          }
+          onDisclose={() =>
+            void run("disclose", async () => {
+              await (await contracts.disclosure["disclose"]!(state.draw!.drawId)).wait();
+              return "Award is now publicly verifiable.";
+            })
+          }
+        />
+      )}
+
+      <footer style={{ marginTop: "var(--space-6)", fontSize: 12, color: "var(--ink-tertiary)" }}>
+        Unaudited. Testnet only.
+      </footer>
+    </main>
+  );
+}

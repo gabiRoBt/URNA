@@ -1,0 +1,443 @@
+/*
+ * Sortis — visual system.
+ *
+ * The rule this file follows: nothing is here to impress. Every border,
+ * every unit of space, every weight earns its place by making the numbers
+ * easier to read or the controls easier to find.
+ *
+ * Structurally this is a grouped list interface — label on the left, value on
+ * the right, hairline between rows, a quiet caption above each group. It is a
+ * decades-old pattern because it works for exactly this kind of content:
+ * small, dense, factual, read more often than it is operated.
+ */
+
+:root {
+  /* Neutrals carry a faint cool cast so they sit with the accent rather than
+     fighting it. A pure grey next to a blue accent reads as an accident. */
+  --ink: #16181d;
+  --ink-secondary: #6b7076;
+  --ink-tertiary: #9aa0a6;
+
+  --surface: #ffffff;
+  --surface-grouped: #f7f7f8;
+  --surface-raised: #ffffff;
+
+  --rule: #dfe1e5;
+  --rule-strong: #c9ccd1;
+
+  /* One accent. Deliberately a shade duller than a system blue — this is a
+     savings product, not a notification. */
+  --accent: #2c5fd4;
+  --accent-pressed: #244eb0;
+  --accent-wash: #eef2fc;
+
+  /* Semantic colour is separate from the accent and used sparingly: a won
+     amount, a failed action. Never decoration. */
+  --positive: #2a7d4f;
+  --negative: #b3261e;
+  --caution: #8a6100;
+
+  --radius: 6px;
+  --radius-control: 5px;
+
+  /* A four-step scale. More steps than this and spacing stops being a
+     decision and starts being a guess. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  --font-sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --content-width: 552px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e8eaed;
+    --ink-secondary: #9aa0a6;
+    --ink-tertiary: #6b7076;
+
+    --surface: #16181d;
+    --surface-grouped: #1c1f25;
+    --surface-raised: #22262e;
+
+    --rule: #2c313a;
+    --rule-strong: #3a4049;
+
+    --accent: #7fa3f0;
+    --accent-pressed: #9ab6f5;
+    --accent-wash: #1e2739;
+
+    --positive: #6cc48f;
+    --negative: #ef8b84;
+    --caution: #d4a441;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--surface-grouped);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.47;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Digits line up in columns everywhere in this interface, so tabular figures
+   are the default rather than an opt-in. */
+.mono,
+.amount,
+.address {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "zero" 1;
+}
+
+/* ── Shell ──────────────────────────────────────────────────────────── */
+
+.shell {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-4) var(--space-7);
+}
+
+.masthead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-bottom: var(--space-4);
+  margin-bottom: var(--space-5);
+  border-bottom: 1px solid var(--rule);
+}
+
+.masthead-title {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.masthead-subtitle {
+  font-size: 13px;
+  color: var(--ink-secondary);
+  margin: 2px 0 0;
+}
+
+/* ── Group: the primary structural unit ─────────────────────────────── */
+
+.group {
+  margin-bottom: var(--space-5);
+}
+
+.group-caption {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-secondary);
+  margin: 0 0 var(--space-2);
+  padding: 0 var(--space-1);
+}
+
+.group-body {
+  background: var(--surface-raised);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.group-footnote {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ink-secondary);
+  margin: var(--space-2) 0 0;
+  padding: 0 var(--space-1);
+}
+
+/* ── Row ────────────────────────────────────────────────────────────── */
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-height: 44px;
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--rule);
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.row-stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  padding-bottom: var(--space-3);
+}
+
+.row-label {
+  font-size: 15px;
+  color: var(--ink);
+  flex-shrink: 0;
+}
+
+.row-sublabel {
+  display: block;
+  font-size: 12px;
+  color: var(--ink-secondary);
+  margin-top: 1px;
+}
+
+.row-value {
+  font-size: 15px;
+  color: var(--ink-secondary);
+  text-align: right;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.row-value-strong {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.row-value-positive {
+  color: var(--positive);
+  font-weight: 500;
+}
+
+/* ── Sealed value: the interface's one distinctive element ──────────── */
+
+/*
+ * Encrypted values are shown as a sealed field rather than a blank or a
+ * spinner. The point is that the value exists and is withheld — not that it
+ * is missing or still loading. Reading it is an action the holder takes.
+ */
+.sealed {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--ink-tertiary);
+  background: var(--surface-grouped);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-control);
+  padding: 3px var(--space-2);
+  letter-spacing: 0.08em;
+  user-select: none;
+}
+
+.sealed-mark {
+  width: 9px;
+  height: 11px;
+  flex-shrink: 0;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.4;
+}
+
+/* ── Controls ───────────────────────────────────────────────────────── */
+
+.button {
+  appearance: none;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 9px 14px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--rule-strong);
+  background: var(--surface-raised);
+  color: var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 90ms ease, border-color 90ms ease;
+}
+
+.button:hover:not(:disabled) {
+  background: var(--surface-grouped);
+}
+
+.button:active:not(:disabled) {
+  background: var(--rule);
+}
+
+.button:disabled {
+  color: var(--ink-tertiary);
+  cursor: default;
+  opacity: 0.7;
+}
+
+.button-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+
+.button-primary:hover:not(:disabled) {
+  background: var(--accent-pressed);
+  border-color: var(--accent-pressed);
+}
+
+.button-primary:active:not(:disabled) {
+  background: var(--accent-pressed);
+}
+
+.button-primary:disabled {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+
+.button-quiet {
+  border-color: transparent;
+  background: transparent;
+  color: var(--accent);
+  padding-left: var(--space-2);
+  padding-right: var(--space-2);
+}
+
+.button-quiet:hover:not(:disabled) {
+  background: var(--accent-wash);
+}
+
+.button-full {
+  width: 100%;
+}
+
+:where(a, button, input, select):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.field {
+  display: flex;
+  gap: var(--space-2);
+  align-items: stretch;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+  padding: 9px var(--space-3);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+  color: var(--ink);
+}
+
+.input::placeholder {
+  color: var(--ink-tertiary);
+}
+
+.input:focus {
+  border-color: var(--accent);
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+/* ── Status ─────────────────────────────────────────────────────────── */
+
+.status {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: 13px;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink-secondary);
+}
+
+.status:last-child {
+  border-bottom: none;
+}
+
+.status-error {
+  color: var(--negative);
+}
+
+.status-working {
+  color: var(--ink-secondary);
+}
+
+.stage {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-secondary);
+  border: 1px solid var(--rule-strong);
+  border-radius: 3px;
+  padding: 2px 6px;
+}
+
+.stage-active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.stage-done {
+  color: var(--positive);
+  border-color: var(--positive);
+}
+
+/* ── Progress: a plain measure, not an animation ────────────────────── */
+
+.meter {
+  height: 3px;
+  background: var(--rule);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.meter-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 200ms ease;
+}
+
+/* ── Empty state ────────────────────────────────────────────────────── */
+
+.empty {
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+  color: var(--ink-secondary);
+  font-size: 14px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

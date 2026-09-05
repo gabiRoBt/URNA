@@ -1,0 +1,31 @@
+node_modules/
+
+# Hardhat build output and generated typings
+artifacts/
+cache/
+types/
+
+# Scratch space the fhEVM plugin writes while resolving host contracts
+.fhevm/
+fhevmTemp/
+
+# Next.js build output
+.next/
+out/
+frontend/.next/
+frontend/out/
+
+# Secrets. `.env.example` is the committed template.
+.env
+.env.*
+!.env.example
+
+# Deployment records are committed on purpose: they are how the frontend and
+# the README point at a live deployment.
+!deployments/
+
+*.log
+.DS_Store
+
+# Local tooling config
+.claude/
