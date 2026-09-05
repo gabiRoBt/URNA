@@ -17,7 +17,7 @@ import { useState } from "react";
 import { AwardPanel, PoolPanel, PositionPanel } from "@/components/panels";
 import { Group, Row } from "@/components/primitives";
 import { Redacted, VantageSwitch, type Vantage } from "@/components/ObserverToggle";
-import { UrnaScene, type ScenePhase } from "@/components/UrnaScene";
+import { UrnaScene, useDrawPlayback } from "@/components/UrnaScene";
 
 const UNIT = 1_000_000n;
 
@@ -34,7 +34,7 @@ const YOUR_BALANCE = 12_500n * UNIT;
 const YOUR_AWARD = (PRIZE * 50n) / 100n;
 
 export default function PreviewPage() {
-  const [phase, setPhase] = useState<ScenePhase>("idle");
+  const { phase, progress, playing, play } = useDrawPlayback();
   const [vantage, setVantage] = useState<Vantage>("holder");
   const [revealed, setRevealed] = useState<bigint | null>(null);
 
@@ -143,35 +143,27 @@ export default function PreviewPage() {
       <Section
         number={6}
         title="The draw runs on the encrypted amounts"
-        body="A random point is generated on-chain and never decrypted — not for the operator, not for us. The contract then walks every position, adding up encrypted weights until it passes that point. It cannot stop when it finds the winner, because it is never allowed to learn that it has. Every position costs exactly the same to visit, so the walk itself gives nothing away."
+        body="A random point is generated on-chain and never decrypted — not for the operator, not for us. The contract then walks every position, adding up encrypted weights until it passes that point. It cannot stop when it finds the winner, because it is never allowed to learn that it has. Watch the sweep: every position gets exactly the same moment, which is why the walk itself gives nothing away."
       />
-
-      <div className="scene-controls">
-        {(["idle", "sealed", "drawing", "settled"] as const).map((option) => (
-          <button
-            key={option}
-            type="button"
-            className={`button${phase === option ? " button-primary" : ""}`}
-            onClick={() => setPhase(option)}
-          >
-            {option === "idle"
-              ? "Open"
-              : option === "sealed"
-                ? "Sealed"
-                : option === "drawing"
-                  ? "Drawing"
-                  : "Settled"}
-          </button>
-        ))}
-      </div>
 
       <UrnaScene
         participants={24}
         youIndex={3}
         phase={phase}
-        progress={phase === "drawing" ? 0.45 : 1}
+        progress={progress}
         winnerIndex={3}
       />
+
+      <div className="scene-controls">
+        <button
+          type="button"
+          className="button button-primary"
+          onClick={play}
+          disabled={playing}
+        >
+          {playing ? "Drawing…" : phase === "settled" ? "Draw again" : "Run a draw"}
+        </button>
+      </div>
 
       <Section
         number={7}

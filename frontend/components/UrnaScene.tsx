@@ -37,6 +37,19 @@ const SIZE = 300;
 const CENTRE = SIZE / 2;
 const ORBIT = 108;
 
+/**
+ * Rounds a coordinate to two decimals.
+ *
+ * Not cosmetic. `Math.sin` and `Math.cos` are permitted to differ in their
+ * final bit between implementations, so the same angle can produce
+ * 56.46925639128065 on the server and ...64 in the browser. React compares the
+ * rendered attributes and reports a hydration mismatch over that last digit.
+ *
+ * Two decimals is well past what a 300-unit viewBox can express, so nothing is
+ * lost and both sides now agree exactly.
+ */
+const round = (value: number): number => Math.round(value * 100) / 100;
+
 export function UrnaScene({
   participants,
   youIndex = null,
@@ -55,8 +68,8 @@ export function UrnaScene({
       const angle = (index / Math.max(1, shown)) * Math.PI * 2 - Math.PI / 2;
       return {
         index,
-        x: CENTRE + Math.cos(angle) * ORBIT,
-        y: CENTRE + Math.sin(angle) * ORBIT,
+        x: round(CENTRE + Math.cos(angle) * ORBIT),
+        y: round(CENTRE + Math.sin(angle) * ORBIT),
       };
     });
   }, [shown]);
@@ -90,14 +103,30 @@ export function UrnaScene({
           const isWinner = phase === "settled" && position.index === winnerIndex;
           const isSweeping = position.index === sweepIndex;
 
+          // Positions the walk has already passed. Marking them is what makes
+          // the sweep legible as progress rather than as a light wandering
+          // around a ring — and it shows the traversal covering everything,
+          // which is the property being demonstrated.
+          const isVisited = phase === "drawing" && position.index < sweepIndex;
+
           const classes = ["scene-position"];
           if (isYou) classes.push("scene-you");
+          if (isVisited) classes.push("scene-visited");
           if (isWinner) classes.push("scene-winner");
           if (isSweeping) classes.push("scene-sweeping");
 
           return (
             <g key={position.index}>
-              {isYou && (
+              {isWinner && (
+                <circle
+                  cx={position.x}
+                  cy={position.y}
+                  r={13}
+                  className="scene-winner-halo"
+                  fill="none"
+                />
+              )}
+              {isYou && !isWinner && (
                 <circle
                   cx={position.x}
                   cy={position.y}
@@ -214,4 +243,86 @@ export function useScenePhase(
   }, [drawState]);
 
   return { phase, progress };
+}
+
+/** How long the walk takes to cross the whole ring, in milliseconds. */
+const WALK_DURATION = 3200;
+const SEAL_PAUSE = 900;
+
+/**
+ * Plays a draw, rather than letting someone step through its states.
+ *
+ * The earlier version exposed one button per phase, which is a developer's
+ * control panel: a visitor has no idea what to press or why the labels mean
+ * anything. Running the sequence in time removes the question — you press
+ * once and watch what a draw does.
+ *
+ * The pace is chosen so the sweep is followable. It could run much faster,
+ * but the thing worth noticing is that every position gets an identical
+ * moment, and at speed that reads as a blur rather than as a rule.
+ */
+export function useDrawPlayback(): {
+  phase: ScenePhase;
+  progress: number;
+  playing: boolean;
+  play: () => void;
+} {
+  const [phase, setPhase] = useState<ScenePhase>("idle");
+  const [progress, setProgress] = useState(0);
+  const [runId, setRunId] = useState(0);
+
+  useEffect(() => {
+    if (runId === 0) return;
+
+    const reduced =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (reduced) {
+      // Honour the preference by showing the outcome rather than the journey.
+      setPhase("settled");
+      setProgress(1);
+      return;
+    }
+
+    setPhase("sealed");
+    setProgress(0);
+
+    // Progress is computed from the clock on every tick rather than
+    // accumulated frame by frame. Two reasons, and the second is a real bug
+    // the frame-based version had: browsers stop firing animation frames in a
+    // hidden tab, so switching away mid-draw left the sweep frozen and the
+    // draw never reached its settled state. Reading the clock means a tab that
+    // comes back simply resumes at the right place — or finds the draw already
+    // finished, which is also correct.
+    const started = Date.now();
+    const total = SEAL_PAUSE + WALK_DURATION;
+
+    const tick = (): void => {
+      const elapsed = Date.now() - started;
+
+      if (elapsed < SEAL_PAUSE) return;
+
+      if (elapsed >= total) {
+        setPhase("settled");
+        setProgress(1);
+        clearInterval(timer);
+        return;
+      }
+
+      setPhase("drawing");
+      setProgress((elapsed - SEAL_PAUSE) / WALK_DURATION);
+    };
+
+    const timer = setInterval(tick, 40);
+
+    return () => clearInterval(timer);
+  }, [runId]);
+
+  return {
+    phase,
+    progress,
+    playing: phase === "sealed" || phase === "drawing",
+    play: () => setRunId((current) => current + 1),
+  };
 }

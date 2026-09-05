@@ -316,14 +316,32 @@ body {
   opacity: 0.35;
 }
 
-/* The marker the walk is currently over. Brief and even — every position
-   gets exactly this treatment, which is the point being made. */
+/* Already visited. The trail is what makes the sweep read as progress rather
+   than as a light wandering a ring, and it shows the walk covering every
+   position — the property being demonstrated. */
+.scene-visited {
+  fill: var(--accent);
+  opacity: 0.32;
+}
+
+/* The marker the walk is currently over. Brief and even: every position gets
+   exactly this treatment, which is the whole point. */
 .scene-sweeping {
   fill: var(--accent);
+  opacity: 1;
 }
 
 .scene-winner {
   fill: var(--positive);
+  opacity: 1;
+}
+
+/* A ring around the winner, so the outcome is legible at a glance rather than
+   depending on colour alone. */
+.scene-winner-halo {
+  stroke: var(--positive);
+  stroke-width: 1.5;
+  opacity: 0.5;
 }
 
 .scene-caption {
