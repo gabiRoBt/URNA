@@ -59,7 +59,7 @@ export default function PreviewPage() {
     <main className="shell">
       <header className="masthead">
         <div>
-          <h1 className="masthead-title">Sortis</h1>
+          <h1 className="masthead-title">Urna</h1>
           <p className="masthead-subtitle">Interface states</p>
         </div>
       </header>
@@ -78,6 +78,7 @@ export default function PreviewPage() {
         hasPosition={false}
         revealed={null}
         busy={null}
+        vantage="holder"
         onReveal={() => {}}
         onHide={() => {}}
       />
@@ -87,6 +88,7 @@ export default function PreviewPage() {
         hasPosition={false}
         revealed={null}
         busy={null}
+        vantage="holder"
         onReveal={() => {}}
         onHide={() => {}}
       />
@@ -96,8 +98,24 @@ export default function PreviewPage() {
         hasPosition
         revealed={balance}
         busy={null}
+        vantage="holder"
         onReveal={() => setBalance(12_500n * UNIT)}
         onHide={() => setBalance(null)}
+      />
+
+      {/*
+        The same position, same data, rendered from the other side. Placing
+        the two adjacent is the clearest statement of what the protocol does:
+        the difference between these panels is the entire product.
+      */}
+      <PositionPanel
+        connected
+        hasPosition
+        revealed={12_500n * UNIT}
+        busy={null}
+        vantage="observer"
+        onReveal={() => {}}
+        onHide={() => {}}
       />
 
       <Divider>Test token</Divider>
@@ -136,6 +154,7 @@ export default function PreviewPage() {
         hasClaimed={false}
         revealed={award}
         busy={null}
+        vantage="holder"
         onReveal={() => setAward((PRIZE * 50n) / 100n)}
         onClaim={() => {}}
         onDisclose={() => {}}
@@ -147,6 +166,7 @@ export default function PreviewPage() {
         hasClaimed
         revealed={(PRIZE * 30n) / 100n}
         busy={null}
+        vantage="holder"
         onReveal={() => {}}
         onClaim={() => {}}
         onDisclose={() => {}}
@@ -158,6 +178,39 @@ export default function PreviewPage() {
         hasClaimed
         revealed={0n}
         busy={null}
+        vantage="holder"
+        onReveal={() => {}}
+        onClaim={() => {}}
+        onDisclose={() => {}}
+      />
+
+      <Divider>Award, seen by an onlooker</Divider>
+
+      {/*
+        Two awards from the outside. The private one is a redaction; the
+        disclosed one shows its real figure, because its holder chose to open
+        it. Nothing distinguishes a winning award from a losing one until
+        somebody decides to say.
+      */}
+      <AwardPanel
+        drawId={4n}
+        isPublic={false}
+        hasClaimed
+        revealed={(PRIZE * 50n) / 100n}
+        busy={null}
+        vantage="observer"
+        onReveal={() => {}}
+        onClaim={() => {}}
+        onDisclose={() => {}}
+      />
+
+      <AwardPanel
+        drawId={3n}
+        isPublic
+        hasClaimed
+        revealed={(PRIZE * 30n) / 100n}
+        busy={null}
+        vantage="observer"
         onReveal={() => {}}
         onClaim={() => {}}
         onDisclose={() => {}}

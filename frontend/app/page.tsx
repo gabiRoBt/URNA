@@ -11,10 +11,8 @@ import {
   PositionPanel,
 } from "@/components/panels";
 import { Button, Group, Row, Status } from "@/components/primitives";
+import { VantageSwitch, type Vantage } from "@/components/ObserverToggle";
 import { deployment, isDeployed, TOKEN_DECIMALS } from "@/lib/config";
-
-/** What the faucet hands out per click. */
-const FAUCET_AMOUNT = 10_000n * 10n ** BigInt(TOKEN_DECIMALS);
 import {
   decryptOwn,
   decryptPublic,
@@ -32,10 +30,19 @@ import {
   type Connection,
 } from "@/lib/wallet";
 
+/** What the faucet hands out per click. */
+const FAUCET_AMOUNT = 10_000n * 10n ** BigInt(TOKEN_DECIMALS);
+
 export default function Page() {
   const [connection, setConnection] = useState<Connection | null>(null);
   const [notice, setNotice] = useState<{ text: string; isError: boolean } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+
+  // Which point of view the page is rendered from. Purely a display concern:
+  // switching it changes nothing on-chain and reads nothing new. It exists
+  // because confidentiality is otherwise invisible — a pool that hides
+  // balances looks exactly like one that has none.
+  const [vantage, setVantage] = useState<Vantage>("holder");
 
   const { state, contracts, refresh } = useProtocol(connection);
 
@@ -92,11 +99,13 @@ export default function Page() {
 
   const wrongChain = connection !== null && connection.chainId !== deployment.chainId;
 
+  const observing = vantage === "observer";
+
   return (
-    <main className="shell">
+    <main className={`shell${observing ? " observing" : ""}`}>
       <header className="masthead">
         <div>
-          <h1 className="masthead-title">Sortis</h1>
+          <h1 className="masthead-title">Urna</h1>
           <p className="masthead-subtitle">Confidential prize savings</p>
         </div>
         {connection === null ? (
@@ -109,6 +118,27 @@ export default function Page() {
           </span>
         )}
       </header>
+
+      {connection !== null && (
+        <Group
+          caption="Point of view"
+          footnote={
+            observing
+              ? "This is the whole public record. Everything else on this page is encrypted on-chain — not merely hidden from the interface."
+              : "Switch to see this page as any onlooker sees it. Nothing changes on-chain; only what the screen is allowed to render."
+          }
+        >
+          <Row
+            label={observing ? "Viewing as an onlooker" : "Viewing as yourself"}
+            sublabel={
+              observing
+                ? "Aggregates only"
+                : "Your own values, decrypted in this browser"
+            }
+            value={<VantageSwitch vantage={vantage} onChange={setVantage} />}
+          />
+        </Group>
+      )}
 
       {!isDeployed && (
         <Group caption="Not configured">
@@ -140,6 +170,7 @@ export default function Page() {
         hasPosition={state.balanceHandle !== null}
         revealed={revealedBalance}
         busy={busy}
+        vantage={vantage}
         onHide={() => setRevealedBalance(null)}
         onReveal={() =>
           void run("reveal", async () => {
@@ -157,7 +188,7 @@ export default function Page() {
         }
       />
 
-      {connection !== null && contracts !== null && (
+      {connection !== null && contracts !== null && !observing && (
         <FaucetPanel
           busy={busy}
           amount={FAUCET_AMOUNT}
@@ -181,7 +212,7 @@ export default function Page() {
         />
       )}
 
-      {connection !== null && contracts !== null && (
+      {connection !== null && contracts !== null && !observing && (
         <MovePanel
           busy={busy}
           hasPosition={state.balanceHandle !== null}
@@ -227,6 +258,7 @@ export default function Page() {
           hasClaimed={state.hasClaimed}
           revealed={revealedAward}
           busy={busy}
+          vantage={vantage}
           onReveal={() =>
             void run("reveal-award", async () => {
               const handle = state.awardHandle!;

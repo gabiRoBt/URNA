@@ -1,4 +1,4 @@
-# Sortis
+# Urna
 
 A no-loss prize savings pool where deposits, odds, and winnings stay encrypted, and winner selection runs on-chain over encrypted balances.
 
@@ -6,6 +6,8 @@ Built on the [Zama Protocol](https://www.zama.org) for **Developer Program Mainn
 
 **Live app:** _(pending)_
 **Network:** Sepolia — addresses in [`deployments/11155111.json`](deployments/11155111.json)
+
+> *Urna* is Romanian, inherited unchanged from the Latin: the vessel a lot is drawn from. The name is the mechanism. You reach in without seeing what is inside, and the vessel is opaque by construction — not a limitation of the thing, but the definition of it.
 
 ---
 
@@ -52,6 +54,25 @@ Three aggregates are public, and each is public for a reason rather than by omis
 **Participation.** Addresses that deposit are visible, because transactions are. Amounts are not.
 
 What is *not* leaked is the thing that matters: the mapping from any of those aggregates to an individual position.
+
+### Seeing the confidentiality
+
+Confidentiality has a presentation problem: **it looks exactly like the absence of a feature.** A pool that hides balances and a pool that has no balances render identically, so the work that makes the first one possible is invisible in the thing it produces.
+
+The app has a switch — **You / Anyone else** — that renders the same page from both vantage points. Same data, same components, two points of view:
+
+```
+        YOU                            ANYONE ELSE
+Balance      12,500.00 cUSD    Balance      ▨▨▨▨▨▨▨▨
+Your odds    🔒 sealed          Your odds    ▨▨▨▨▨▨
+Award        60,156.00 cUSD    Award        ▨▨▨▨▨▨▨▨
+                               Total pool   4,812,500.00   ← what an
+                               Participants 47              ← onlooker does see
+```
+
+It changes nothing on-chain and reads nothing new; it is purely a rendering. But it makes the guarantee legible in about two seconds, and it is honest in both directions — the observer view also shows exactly what *is* public, rather than implying the pool hides more than it does.
+
+An award that its holder has disclosed shows its real figure even to an onlooker. That is the point of disclosing it.
 
 ### Why odds are never shown
 

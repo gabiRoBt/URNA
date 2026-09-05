@@ -12,6 +12,7 @@
 import { useState } from "react";
 
 import { Button, Group, Meter, Row, Sealed, Stage } from "./primitives";
+import { ByVantage, Redacted, type Vantage } from "./ObserverToggle";
 import { TOKEN_SYMBOL } from "@/lib/config";
 import { formatAmount, parseAmount } from "@/lib/format";
 import { DrawState, drawProgress, type DrawFacts } from "@/lib/useProtocol";
@@ -23,6 +24,7 @@ export function PositionPanel({
   hasPosition,
   revealed,
   busy,
+  vantage,
   onReveal,
   onHide,
 }: {
@@ -30,6 +32,7 @@ export function PositionPanel({
   hasPosition: boolean;
   revealed: bigint | null;
   busy: string | null;
+  vantage: Vantage;
   onReveal: () => void;
   onHide: () => void;
 }) {
@@ -49,45 +52,64 @@ export function PositionPanel({
     );
   }
 
+  const observing = vantage === "observer";
+
   return (
     <Group
-      caption="Your position"
-      footnote="Your balance and your odds are encrypted on-chain. Revealing decrypts locally in this browser — it does not publish anything."
+      caption={observing ? "This position, seen by anyone" : "Your position"}
+      footnote={
+        observing
+          ? "An onlooker sees that this address holds a position. Not its size, not its odds, not what it has won."
+          : "Your balance and your odds are encrypted on-chain. Revealing decrypts locally in this browser — it does not publish anything."
+      }
     >
       <Row
         label="Balance"
         value={
-          revealed === null ? (
-            <Sealed />
-          ) : (
-            <span className="amount row-value-strong">{formatAmount(revealed)}</span>
-          )
+          <ByVantage
+            vantage={vantage}
+            observer={<Redacted width={104} />}
+            holder={
+              revealed === null ? (
+                <Sealed />
+              ) : (
+                <span className="amount row-value-strong">{formatAmount(revealed)}</span>
+              )
+            }
+          />
         }
       />
       {/*
-        Odds stay sealed even after the balance is revealed. The interface
-        could compute them from a revealed balance and the public total, but
-        putting that number on screen would quietly undo what the protocol
-        protects: anyone glancing at the display would learn the position's
-        size. It is not withheld because it is unavailable — it is withheld
-        because showing it is the leak.
+        Odds stay sealed in both views, and for different reasons. To an
+        onlooker they are simply unavailable. To the holder they are
+        computable — balance is revealed, the total is public — and still not
+        shown, because rendering that number is itself the leak: anyone
+        glancing at the screen would learn the position's size.
       */}
       <Row
         label="Your odds"
-        sublabel="Not computed, here or on-chain"
-        value={<Sealed />}
+        sublabel={observing ? undefined : "Not computed, here or on-chain"}
+        value={
+          <ByVantage
+            vantage={vantage}
+            observer={<Redacted width={70} />}
+            holder={<Sealed />}
+          />
+        }
       />
-      <Row>
-        {revealed === null ? (
-          <Button full onClick={onReveal} disabled={busy !== null}>
-            {busy === "reveal" ? "Decrypting…" : "Reveal balance"}
-          </Button>
-        ) : (
-          <Button full variant="quiet" onClick={onHide}>
-            Hide
-          </Button>
-        )}
-      </Row>
+      {!observing && (
+        <Row>
+          {revealed === null ? (
+            <Button full onClick={onReveal} disabled={busy !== null}>
+              {busy === "reveal" ? "Decrypting…" : "Reveal balance"}
+            </Button>
+          ) : (
+            <Button full variant="quiet" onClick={onHide}>
+              Hide
+            </Button>
+          )}
+        </Row>
+      )}
     </Group>
   );
 }
@@ -328,6 +350,7 @@ export function AwardPanel({
   hasClaimed,
   revealed,
   busy,
+  vantage,
   onReveal,
   onClaim,
   onDisclose,
@@ -337,56 +360,78 @@ export function AwardPanel({
   hasClaimed: boolean;
   revealed: bigint | null;
   busy: string | null;
+  vantage: Vantage;
   onReveal: () => void;
   onClaim: () => void;
   onDisclose: () => void;
 }) {
   const won = revealed !== null && revealed > 0n;
+  const observing = vantage === "observer";
 
   return (
     <Group
-      caption={`Your award · draw ${drawId}`}
+      caption={observing ? `This award, seen by anyone · draw ${drawId}` : `Your award · draw ${drawId}`}
       footnote={
         isPublic
-          ? "You made this award public. Anyone can verify the amount now. This cannot be undone."
-          : "Only you can read this. Publishing is your decision — the pool cannot do it for you, and it cannot be reversed."
+          ? "The holder chose to make this award public, so anyone can now verify the amount. That decision was theirs alone, and it cannot be undone."
+          : observing
+            ? "An onlooker cannot tell a winning award from a losing one. Every participant is credited on every tier; the losers hold an encrypted zero."
+            : "Only you can read this. Publishing is your decision — the pool cannot do it for you, and it cannot be reversed."
       }
     >
       <Row
         label="Amount"
         value={
-          revealed === null ? (
-            <Sealed />
-          ) : (
-            <span className={won ? "amount row-value-positive" : "amount row-value-strong"}>
-              {formatAmount(revealed)}
-            </span>
-          )
+          <ByVantage
+            vantage={vantage}
+            // A disclosed award is public by definition, so the observer sees
+            // the real number. That is the whole point of disclosing it.
+            observer={
+              isPublic && revealed !== null ? (
+                <span className="amount row-value-positive">{formatAmount(revealed)}</span>
+              ) : (
+                <Redacted width={104} />
+              )
+            }
+            holder={
+              revealed === null ? (
+                <Sealed />
+              ) : (
+                <span
+                  className={won ? "amount row-value-positive" : "amount row-value-strong"}
+                >
+                  {formatAmount(revealed)}
+                </span>
+              )
+            }
+          />
         }
       />
       <Row
         label="Visibility"
-        value={<span style={{ fontSize: 13 }}>{isPublic ? "Public" : "You only"}</span>}
+        value={<span style={{ fontSize: 13 }}>{isPublic ? "Public" : "Holder only"}</span>}
       />
-      <Row>
-        <div style={{ display: "flex", gap: "var(--space-2)" }}>
-          {revealed === null && (
-            <Button full onClick={onReveal} disabled={busy !== null}>
-              {busy === "reveal-award" ? "Decrypting…" : "Reveal"}
-            </Button>
-          )}
-          {!hasClaimed && (
-            <Button full variant="primary" onClick={onClaim} disabled={busy !== null}>
-              {busy === "claim" ? "Working…" : "Claim"}
-            </Button>
-          )}
-          {!isPublic && won && (
-            <Button full onClick={onDisclose} disabled={busy !== null}>
-              {busy === "disclose" ? "Working…" : "Make public"}
-            </Button>
-          )}
-        </div>
-      </Row>
+      {!observing && (
+        <Row>
+          <div style={{ display: "flex", gap: "var(--space-2)" }}>
+            {revealed === null && (
+              <Button full onClick={onReveal} disabled={busy !== null}>
+                {busy === "reveal-award" ? "Decrypting…" : "Reveal"}
+              </Button>
+            )}
+            {!hasClaimed && (
+              <Button full variant="primary" onClick={onClaim} disabled={busy !== null}>
+                {busy === "claim" ? "Working…" : "Claim"}
+              </Button>
+            )}
+            {!isPublic && won && (
+              <Button full onClick={onDisclose} disabled={busy !== null}>
+                {busy === "disclose" ? "Working…" : "Make public"}
+              </Button>
+            )}
+          </div>
+        </Row>
+      )}
     </Group>
   );
 }

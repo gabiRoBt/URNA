@@ -1,5 +1,5 @@
 {
-  "name": "sortis-protocol",
+  "name": "urna-protocol",
   "version": "0.1.0",
   "private": true,
   "description": "Confidential prize savings pool on the Zama Protocol — encrypted deposits, encrypted odds, publicly verifiable draws.",

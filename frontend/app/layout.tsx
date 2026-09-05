@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Sortis",
+  title: "Urna",
   description:
     "A no-loss prize savings pool where deposits, odds, and winnings stay encrypted.",
 };

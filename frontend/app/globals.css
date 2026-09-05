@@ -1,5 +1,5 @@
 /*
- * Sortis — visual system.
+ * Urna — visual system.
  *
  * The rule this file follows: nothing is here to impress. Every border,
  * every unit of space, every weight earns its place by making the numbers
@@ -258,6 +258,74 @@ body {
   stroke: currentColor;
   fill: none;
   stroke-width: 1.4;
+}
+
+/* ── Vantage switch ─────────────────────────────────────────────────── */
+
+/*
+ * A two-position switch, not a pair of buttons. The segmented shape says the
+ * two states are exclusive views of one thing, which is what they are.
+ */
+.vantage {
+  display: inline-flex;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-control);
+  overflow: hidden;
+  background: var(--surface-raised);
+}
+
+.vantage-option {
+  appearance: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 7px 12px;
+  border: none;
+  background: transparent;
+  color: var(--ink-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 90ms ease, color 90ms ease;
+}
+
+.vantage-option + .vantage-option {
+  border-left: 1px solid var(--rule-strong);
+}
+
+.vantage-option:hover:not(.vantage-active) {
+  background: var(--surface-grouped);
+  color: var(--ink);
+}
+
+.vantage-active {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+/*
+ * A redaction bar rather than a lock or the word "hidden". It says the value
+ * exists and is being withheld — the actual on-chain situation — instead of
+ * implying it is missing or still loading.
+ */
+.redacted {
+  display: inline-block;
+  height: 13px;
+  vertical-align: -1px;
+  border-radius: 2px;
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--rule-strong),
+    var(--rule-strong) 3px,
+    var(--rule) 3px,
+    var(--rule) 6px
+  );
+}
+
+.observing .group-body {
+  /* A faint wash while observing, so the mode is legible at a glance without
+     a banner shouting it on every group. */
+  background: var(--surface-grouped);
 }
 
 /* ── Controls ───────────────────────────────────────────────────────── */
