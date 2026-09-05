@@ -59,14 +59,21 @@ const DEPOSITS = [
 const PRIZE = 4_000n * UNIT;
 
 /**
- * What each seeded account is funded with.
+ * Gas an account must be funded for: its own operator approval and deposit,
+ * about 1.05M together, with headroom.
  *
- * Two transactions of its own — the operator approval and the deposit — at
- * roughly 1.05M gas together. This leaves headroom for several times the gas
- * price seen at funding time; the remainder is stranded in the account, which
- * is the price of not having to top anyone up mid-run.
+ * Sized against the fee *cap*, never against the price actually paid. A
+ * transaction is refused at broadcast unless the sender's balance covers
+ * `gasLimit × maxFeePerGas`, and ethers sets that cap at roughly twice the
+ * base fee — so funding that comfortably covers the real cost is still
+ * rejected. That is precisely how the first run of this script died, one
+ * transaction in: the account held 0.00245 ETH, spent 0.0012, and was turned
+ * away for wanting 0.00258.
  */
-const FUNDING = ethers.parseEther("0.0025");
+const SELF_SENT_GAS = 1_600_000n;
+
+/** Gas for a plain transfer, which is what the refund at the end costs. */
+const TRANSFER_GAS = 21_000n;
 
 interface Receipt {
   what: string;
@@ -101,11 +108,15 @@ async function main(): Promise<void> {
   const send = async (
     what: string,
     action: () => Promise<{ hash: string; wait: () => Promise<{ gasUsed: bigint } | null> }>,
+    // Moving testnet ether between accounts is plumbing, not protocol. It is
+    // shown while the run happens and left out of the record, so the file the
+    // README draws from contains only transactions worth looking at.
+    record = true,
   ): Promise<void> => {
     const tx = await action();
     const receipt = await tx.wait();
     const gas = receipt?.gasUsed ?? 0n;
-    receipts.push({ what, hash: tx.hash, gas: gas.toString() });
+    if (record) receipts.push({ what, hash: tx.hash, gas: gas.toString() });
     detail(`${what} — ${gas.toLocaleString()} gas`);
   };
 
@@ -140,21 +151,27 @@ async function main(): Promise<void> {
 
   // ── Preflight ───────────────────────────────────────────────────────────
 
-  const gasPrice = (await ethers.provider.getFeeData()).gasPrice ?? 0n;
+  const fee = await ethers.provider.getFeeData();
+  const feeCap = fee.maxFeePerGas ?? fee.gasPrice ?? 0n;
+  const priority = fee.maxPriorityFeePerGas ?? 0n;
   const opening = await ethers.provider.getBalance(operator.address);
 
-  // Operator gas, roughly: one transfer and one mint per account, plus the
-  // draw itself. Deliberately generous — refusing to start beats stopping
-  // halfway with half a pool on-chain.
+  const funding = feeCap * SELF_SENT_GAS;
+
+  // Accounts are funded one at a time and swept as soon as they have
+  // deposited, so only one funding is outstanding at any moment. What the run
+  // actually needs is the operator's own gas — a transfer, a mint and a
+  // refund per account, plus the draw — with a couple of fundings of slack.
   const estimate =
-    FUNDING * BigInt(accounts.length) +
-    gasPrice * (BigInt(accounts.length) * 300_000n + 5_000_000n);
+    funding * 2n + feeCap * (BigInt(accounts.length) * 450_000n + 6_000_000n);
 
   process.stdout.write("\n");
   detail(`operator      ${operator.address}`);
   detail(`balance       ${ethers.formatEther(opening)} ETH`);
-  detail(`gas price     ${ethers.formatUnits(gasPrice, "gwei")} gwei`);
+  detail(`gas price     ${ethers.formatUnits(fee.gasPrice ?? 0n, "gwei")} gwei`);
+  detail(`fee cap       ${ethers.formatUnits(feeCap, "gwei")} gwei`);
   detail(`accounts      ${accounts.length}`);
+  detail(`funding each  ${ethers.formatEther(funding)} ETH, refunded after depositing`);
   detail(`estimated     ${ethers.formatEther(estimate)} ETH`);
 
   if (opening < estimate) {
@@ -183,14 +200,25 @@ async function main(): Promise<void> {
     }
 
     const held = await ethers.provider.getBalance(account.address);
-    if (held < FUNDING / 2n) {
-      await send("fund", () => operator.sendTransaction({ to: account.address, value: FUNDING }));
+    if (held < funding) {
+      await send(
+        "fund",
+        () => operator.sendTransaction({ to: account.address, value: funding - held }),
+        false,
+      );
     }
 
-    await send("mint", () => token.mint(account.address, amount));
-    await send("approve pool", () =>
-      token.connect(account).setOperator(deployment.pool, deadline),
-    );
+    // An account that already holds an approval was minted to on an earlier
+    // run. Redoing either is harmless and neither is free, so both are
+    // skipped and the run picks up at the deposit.
+    if (!(await token.isOperator(account.address, deployment.pool))) {
+      await send("mint", () => token.mint(account.address, amount));
+      await send("approve pool", () =>
+        token.connect(account).setOperator(deployment.pool, deadline),
+      );
+    } else {
+      detail("already minted and approved, skipping");
+    }
 
     const input = await fhevm
       .createEncryptedInput(deployment.pool, account.address)
@@ -198,6 +226,26 @@ async function main(): Promise<void> {
       .encrypt();
 
     await send("deposit", () => pool.connect(account).deposit(input.handles[0]!, input.inputProof));
+
+    // Give back what was not spent. Funding has to be sized against the worst
+    // case the network will accept, so most of it comes back; stranding that
+    // twelve times over would cost more than the rest of the run.
+    const left = await ethers.provider.getBalance(account.address);
+    const refund = left - feeCap * TRANSFER_GAS;
+    if (refund > 0n) {
+      await send(
+        "refund",
+        () =>
+          account.sendTransaction({
+            to: operator.address,
+            value: refund,
+            gasLimit: TRANSFER_GAS,
+            maxFeePerGas: feeCap,
+            maxPriorityFeePerGas: priority,
+          }),
+        false,
+      );
+    }
   }
 
   detail(`participants now ${await ledger.participantCount()}`);
