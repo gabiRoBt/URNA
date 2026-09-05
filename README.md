@@ -5,7 +5,7 @@ A no-loss prize savings pool where deposits, odds, and winnings stay encrypted, 
 Built on the [Zama Protocol](https://www.zama.org) for **Developer Program Mainnet Season 4**.
 
 **Live app:** _(pending)_
-**Network:** Sepolia — addresses in [`deployments/11155111.json`](deployments/11155111.json)
+**Network:** Sepolia — [contract addresses below](#on-sepolia)
 
 > URNA takes its name from the Romanian *urna*, inherited unchanged from the Latin: the vessel a lot is drawn from. The name is the mechanism. You reach in without seeing what is inside, and the vessel is opaque by construction — not a limitation of the thing, but the definition of it.
 
@@ -16,6 +16,26 @@ Built on the [Zama Protocol](https://www.zama.org) for **Developer Program Mainn
 Participants deposit a confidential token into a shared pool. At each draw, an accrued prize is awarded to depositors selected in proportion to their deposit — exactly the PoolTogether mechanic. Nobody loses principal: it is withdrawable at any time, including while a draw is running.
 
 What no existing prize pool can do: **nobody can see who deposited how much, whose odds are better, or who won.** Not other participants, not observers, not the operator.
+
+---
+
+## On Sepolia
+
+Deployed and exercised end to end against the real coprocessors, not only in mock mode.
+
+| Contract | Address | Role |
+|---|---|---|
+| `ConfidentialPrizePool` | [`0x6787cd0dEa7A2705b5240AF5fc92D5688F3d8053`](https://sepolia.etherscan.io/address/0x6787cd0dEa7A2705b5240AF5fc92D5688F3d8053) | Deposits, withdrawals, encrypted balances |
+| `TicketLedger` | [`0x2d6A3911714b27344827a981a13a6e3A72b7b1B6`](https://sepolia.etherscan.io/address/0x2d6A3911714b27344827a981a13a6e3A72b7b1B6) | Weight register, O(1) seal, copy-on-write |
+| `DrawEngine` | [`0x37E36cb34E9E6Ae2dd151FC60E1d022ebfAF15F8`](https://sepolia.etherscan.io/address/0x37E36cb34E9E6Ae2dd151FC60E1d022ebfAF15F8) | Batched selection over encrypted weights |
+| `PrizeVault` | [`0xF26aFc4E2A2cD1b68aCA1fb189D9C71f389D80F2`](https://sepolia.etherscan.io/address/0xF26aFc4E2A2cD1b68aCA1fb189D9C71f389D80F2) | Prize custody, awards, claims |
+| `FheRandomEntropy` | [`0x8bad0Fd1F5A87E44C85eF9bbA8158312f45a539A`](https://sepolia.etherscan.io/address/0x8bad0Fd1F5A87E44C85eF9bbA8158312f45a539A) | FHE.randEuint64, never decrypted |
+| `TieredWeightPolicy` | [`0x62Ff582C705Ced87871B0946220827Dd16fcf025`](https://sepolia.etherscan.io/address/0x62Ff582C705Ced87871B0946220827Dd16fcf025) | Weight, plus the confidential tier bonus |
+| `DisclosureRegistry` | [`0xd750E54E032e91a0365f539e36018D452A20b95a`](https://sepolia.etherscan.io/address/0xd750E54E032e91a0365f539e36018D452A20b95a) | Who may read a settled award |
+| `SimulatedYieldSource` | [`0xC98b27c6a8A447615d51fFd348238b31Ae2AB1d9`](https://sepolia.etherscan.io/address/0xC98b27c6a8A447615d51fFd348238b31Ae2AB1d9) | Modelled venue |
+| `ConfidentialTokenMock` | [`0x3C26B14e6832fb40e8ACBEb1a5b7e2C1D7dD90Ad`](https://sepolia.etherscan.io/address/0x3C26B14e6832fb40e8ACBEb1a5b7e2C1D7dD90Ad) | Test asset, open minting |
+
+`ConfidentialTokenMock` mints on request, so a reviewer can fund themselves and run the whole cycle without asking anyone for an asset.
 
 ---
 
