@@ -29,3 +29,6 @@ frontend/out/
 
 # Local tooling config
 .claude/
+
+# Incremental TypeScript build state
+*.tsbuildinfo
