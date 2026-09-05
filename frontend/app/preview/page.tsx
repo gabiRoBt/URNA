@@ -18,6 +18,7 @@ import { AwardPanel, PoolPanel, PositionPanel } from "@/components/panels";
 import { Group, Row } from "@/components/primitives";
 import { Redacted, VantageSwitch, type Vantage } from "@/components/ObserverToggle";
 import { UrnaScene, useDrawPlayback } from "@/components/UrnaScene";
+import { Wordmark } from "@/components/Wordmark";
 
 const UNIT = 1_000_000n;
 
@@ -42,7 +43,9 @@ export default function PreviewPage() {
     <main className={`shell${vantage === "observer" ? " observing" : ""}`}>
       <header className="masthead">
         <div>
-          <h1 className="masthead-title">Urna</h1>
+          <h1 className="masthead-title">
+            <Wordmark />
+          </h1>
           <p className="masthead-subtitle">How it works</p>
         </div>
       </header>

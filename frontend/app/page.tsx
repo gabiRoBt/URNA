@@ -13,6 +13,7 @@ import {
 import { Button, Group, Row, Status } from "@/components/primitives";
 import { VantageSwitch, type Vantage } from "@/components/ObserverToggle";
 import { UrnaScene, useScenePhase } from "@/components/UrnaScene";
+import { Wordmark } from "@/components/Wordmark";
 import { deployment, isDeployed, TOKEN_DECIMALS } from "@/lib/config";
 import {
   decryptOwn,
@@ -121,7 +122,9 @@ export default function Page() {
     <main className={`shell${observing ? " observing" : ""}`}>
       <header className="masthead">
         <div>
-          <h1 className="masthead-title">Urna</h1>
+          <h1 className="masthead-title">
+            <Wordmark />
+          </h1>
           <p className="masthead-subtitle">Confidential prize savings</p>
         </div>
         {connection === null ? (

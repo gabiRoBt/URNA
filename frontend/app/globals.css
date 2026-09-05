@@ -137,6 +137,24 @@ body {
   margin: 0;
 }
 
+/* ── Wordmark ───────────────────────────────────────────────────────── */
+
+.wordmark {
+  display: block;
+}
+
+.wordmark-text {
+  font-family: var(--font-sans);
+  font-size: 68px;
+  font-weight: 600;
+}
+
+/* Follows the theme, so the mark reads on either ground. The coloured fills
+   sit at the base and stay put: they are legible against both. */
+.wordmark-ink {
+  fill: var(--ink);
+}
+
 .masthead-subtitle {
   font-size: 13px;
   color: var(--ink-secondary);
