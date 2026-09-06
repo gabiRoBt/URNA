@@ -11,6 +11,7 @@ import type {
   DrawEngine,
   PrizeVault,
   TicketLedger,
+  TieredWeightPolicy,
 } from "../types";
 
 /**
@@ -55,6 +56,15 @@ const DEPOSITS = [
   640n,
   9_300n,
 ];
+
+/**
+ * Balance at or above which a position carries the confidential tier bonus.
+ *
+ * Six of the twelve deposits clear it and six do not, which is what makes the
+ * gap between the public deposit total and the public draw weight mean
+ * something rather than being a rounding artefact.
+ */
+const THRESHOLD = 5_000n * UNIT;
 
 /** Prize for the seeded draw, in whole tokens. */
 const PRIZE = 4_000n * UNIT;
@@ -103,6 +113,7 @@ async function main(): Promise<void> {
   const vault = await at<PrizeVault>("PrizeVault", deployment.vault);
   const engine = await at<DrawEngine>("DrawEngine", deployment.engine);
   const pool = await at<ConfidentialPrizePool>("ConfidentialPrizePool", deployment.pool);
+  const policy = await at<TieredWeightPolicy>("TieredWeightPolicy", deployment.policy);
   const disclosure = await at<DisclosureRegistry>("DisclosureRegistry", deployment.disclosure);
 
   const receipts: Receipt[] = [];
@@ -229,6 +240,23 @@ async function main(): Promise<void> {
     throw new Error(
       `not enough Sepolia ETH: have ${ethers.formatEther(opening)}, ` +
         `need about ${ethers.formatEther(estimate)}`,
+    );
+  }
+
+  // ── Tier threshold ──────────────────────────────────────────────────────
+
+  // A ciphertext, so it cannot come from a constructor and the deploy script
+  // cannot set it. It has to be here, before the first deposit: weight is
+  // derived when a balance moves, and a policy with no threshold would weigh
+  // the early positions without their bonus and never revisit them.
+  if ((await policy.thresholdHandle()) === ethers.ZeroHash) {
+    step("Setting the confidential tier threshold");
+    const encrypted = await fhevm
+      .createEncryptedInput(deployment.policy, operator.address)
+      .add64(THRESHOLD)
+      .encrypt();
+    await send("set threshold", () =>
+      policy.setThreshold(encrypted.handles[0]!, encrypted.inputProof),
     );
   }
 
