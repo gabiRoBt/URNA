@@ -74,6 +74,15 @@ export interface ProtocolState {
   readonly participantCount: number;
 
   readonly draw: DrawFacts | null;
+  /**
+   * Draws that have already finished, most recent first.
+   *
+   * A pool showing one draw looks like a pool that has run once. The history
+   * is what makes it read as something that has been going a while, and it
+   * costs one view call per draw — bounded below because nobody scrolls a
+   * lottery's back catalogue.
+   */
+  readonly history: DrawFacts[];
 }
 
 const EMPTY: ProtocolState = {
@@ -87,7 +96,11 @@ const EMPTY: ProtocolState = {
   unallocatedPrize: 0n,
   participantCount: 0,
   draw: null,
+  history: [],
 };
+
+/** How many finished draws to carry. */
+const HISTORY_DEPTH = 5;
 
 const ZERO_HANDLE = `0x${"0".repeat(64)}`;
 
@@ -171,6 +184,18 @@ export function useProtocol(connection: Connection | null) {
       const drawId = (await reader.engine["currentDrawId"]!()) as bigint;
       const draw = drawId === 0n ? null : await readDraw(reader, drawId);
 
+      // Everything before the current one, newest first. Read in sequence
+      // rather than in parallel: these are a courtesy, and a public RPC
+      // endpoint should not be hit with a burst for them.
+      const history: DrawFacts[] = [];
+      for (
+        let id = drawId - 1n;
+        id > 0n && history.length < HISTORY_DEPTH;
+        id -= 1n
+      ) {
+        history.push(await readDraw(reader, id));
+      }
+
       // Everything from here needs an account to be about. Without one the
       // page shows the pool and stops, which is exactly what an onlooker is
       // entitled to see.
@@ -221,6 +246,7 @@ export function useProtocol(connection: Connection | null) {
         unallocatedPrize,
         participantCount: Number(participantCount),
         draw,
+        history,
       });
     } catch (cause: unknown) {
       setError(cause instanceof Error ? cause.message : "Could not read the pool.");

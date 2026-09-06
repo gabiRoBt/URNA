@@ -34,6 +34,9 @@ const PRIZE = 120_312n * UNIT;
 const YOUR_BALANCE = 12_500n * UNIT;
 const YOUR_AWARD = (PRIZE * 50n) / 100n;
 
+/** An address to stand in for the reader's, so the receipt has one. */
+const HOLDER = "0x2c77a4E9b1D3f5A8c07E1B4F9d62E8aD1c3719bb";
+
 export default function PreviewPage() {
   const { phase, progress, playing, play } = useDrawPlayback();
   const [vantage, setVantage] = useState<Vantage>("holder");
@@ -186,6 +189,7 @@ export default function PreviewPage() {
 
       <AwardPanel
         drawId={4n}
+        holder={HOLDER}
         isPublic={disclosed}
         hasClaimed={claimed}
         revealed={awardRevealed}
@@ -209,6 +213,7 @@ export default function PreviewPage() {
       */}
       <AwardPanel
         drawId={4n}
+        holder={HOLDER}
         isPublic={disclosed}
         hasClaimed
         revealed={YOUR_AWARD}

@@ -7,6 +7,7 @@ import {
   DrawPanel,
   type DrawStep,
   FaucetPanel,
+  HistoryPanel,
   MovePanel,
   PoolPanel,
   PositionPanel,
@@ -399,12 +400,15 @@ export default function Page() {
 
       <DrawPanel draw={state.draw} step={drawStep ?? undefined} />
 
+      <HistoryPanel draws={state.history} />
+
       <RulesPanel facts={deploymentFacts} />
 
       {state.awardHandle !== null && connection !== null && contracts !== null && state.draw !== null && (
         <AwardPanel
           drawId={state.draw.drawId}
           handle={state.awardHandle}
+          holder={connection.address}
           isPublic={state.awardIsPublic}
           hasClaimed={state.hasClaimed}
           revealed={revealedAward}

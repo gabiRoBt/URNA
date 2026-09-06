@@ -13,7 +13,7 @@ import { useState } from "react";
 
 import { Button, Group, Meter, Row, Sealed, Stage, Status } from "./primitives";
 import { ByVantage, Redacted, type Vantage } from "./ObserverToggle";
-import { TOKEN_SYMBOL } from "@/lib/config";
+import { deployment, TOKEN_SYMBOL } from "@/lib/config";
 import { formatAmount, parseAmount } from "@/lib/format";
 import {
   DrawState,
@@ -532,11 +532,113 @@ export function DrawPanel({ draw, step }: { draw: DrawFacts | null; step?: DrawS
   );
 }
 
+/* ── History ────────────────────────────────────────────────────────── */
+
+/**
+ * Draws that have already been decided.
+ *
+ * Nothing here is new information — every figure was public while the draw
+ * ran. What the list adds is continuity: a pool showing a single draw reads
+ * as one that has run once, and this is the difference between a
+ * demonstration and something that has been going for a while.
+ *
+ * It shows what a draw paid and over how many positions. It does not show
+ * who was paid, because it cannot: the awards are ciphertexts, and the only
+ * winners named anywhere are the ones who chose to be.
+ */
+export function HistoryPanel({ draws }: { draws: DrawFacts[] }) {
+  if (draws.length === 0) return null;
+
+  return (
+    <Group
+      caption="Earlier draws"
+      footnote="Amounts and position counts were public throughout. Who won each one was not, and still is not, unless that winner decided otherwise."
+    >
+      {draws.map((draw) => (
+        <Row
+          key={String(draw.drawId)}
+          label={`Draw ${draw.drawId}`}
+          sublabel={`${draw.participantCount} position${draw.participantCount === 1 ? "" : "s"} · ${draw.tierCount} tier${draw.tierCount === 1 ? "" : "s"}`}
+          value={
+            <span className="amount">
+              {draw.prize === 0n ? "no prize" : formatAmount(draw.prize)}
+            </span>
+          }
+        />
+      ))}
+    </Group>
+  );
+}
+
 /* ── Award ──────────────────────────────────────────────────────────── */
+
+/**
+ * A disclosed award, written down so it can be handed to someone.
+ *
+ * Disclosure is the one place this protocol lets a value out, and until now
+ * it ended on-chain with nothing to show for it. A winner who opened their
+ * award had no way to point at it except by explaining ACLs to whoever asked.
+ *
+ * The receipt is deliberately not a claim to be taken on trust: it carries
+ * the handle and the registry that vouches for it, so the reader verifies
+ * rather than believes. It also says who made it public, because the fact
+ * that the holder chose this — and that the pool could not have — is the part
+ * worth conveying.
+ */
+function receiptFor(drawId: bigint, amount: bigint, holder: string): string {
+  return [
+    `URNA — draw ${drawId}`,
+    `Award: ${formatAmount(amount)}`,
+    `Holder: ${holder}`,
+    "",
+    "Made public by the holder. The pool cannot open an award, and the",
+    "decision cannot be reversed.",
+    "",
+    `Registry: ${deployment.explorer}/address/${deployment.disclosure}`,
+    `Pool:     ${deployment.explorer}/address/${deployment.pool}`,
+  ].join("\n");
+}
+
+function Receipt({
+  drawId,
+  amount,
+  holder,
+}: {
+  drawId: bigint;
+  amount: bigint;
+  holder: string;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  return (
+    <Row
+      label="Receipt"
+      sublabel="Amount, holder, and where anyone can check it"
+      value={
+        <Button
+          onClick={() => {
+            void navigator.clipboard
+              .writeText(receiptFor(drawId, amount, holder))
+              .then(() => {
+                setCopied(true);
+                // Long enough to be read, short enough that the button is
+                // never stuck saying something that is no longer happening.
+                setTimeout(() => setCopied(false), 2_000);
+              })
+              .catch(() => setCopied(false));
+          }}
+        >
+          {copied ? "Copied" : "Copy"}
+        </Button>
+      }
+    />
+  );
+}
 
 export function AwardPanel({
   drawId,
   handle,
+  holder,
   isPublic,
   hasClaimed,
   revealed,
@@ -549,6 +651,8 @@ export function AwardPanel({
   drawId: bigint;
   /** Handle to the encrypted award. */
   handle?: string | null;
+  /** The account the award belongs to, for a disclosed award's receipt. */
+  holder?: string;
   isPublic: boolean;
   hasClaimed: boolean;
   revealed: bigint | null;
@@ -604,6 +708,9 @@ export function AwardPanel({
         label="Visibility"
         value={<span style={{ fontSize: 13 }}>{isPublic ? "Public" : "Holder only"}</span>}
       />
+      {isPublic && revealed !== null && holder !== undefined && (
+        <Receipt drawId={drawId} amount={revealed} holder={holder} />
+      )}
       {!observing && (
         <Row>
           <div style={{ display: "flex", gap: "var(--space-2)" }}>
