@@ -11,7 +11,7 @@
 
 import { useState } from "react";
 
-import { Button, Group, Meter, Row, Sealed, Stage } from "./primitives";
+import { Button, Group, Meter, Row, Sealed, Stage, Status } from "./primitives";
 import { ByVantage, Redacted, type Vantage } from "./ObserverToggle";
 import { TOKEN_SYMBOL } from "@/lib/config";
 import { formatAmount, parseAmount } from "@/lib/format";
@@ -284,28 +284,48 @@ export function PoolPanel({
 export interface DrawStep {
   readonly label: string;
   readonly busy: boolean;
+  /** Why the step cannot be taken right now, if it cannot. */
+  readonly blockedBecause?: string;
   readonly run: () => void;
 }
 
+/**
+ * What the draw controls are, and what they are not.
+ *
+ * Sealing being open to anyone is a real design decision, not a demo
+ * shortcut: it is the "automate draws" half of the brief, and it removes the
+ * operator as a thing a draw can wait on. The five minutes is the demo part.
+ * A pool holding real savings would draw daily or weekly, and the interval is
+ * the only line that would change.
+ */
+const CADENCE_NOTE =
+  "Anyone may start a draw once the cadence allows it — there is no operator to wait for, and every step after sealing was already open. The five-minute interval is a testnet setting so a reviewer can run a full cycle; a real pool would draw daily.";
+
 export function DrawPanel({ draw, step }: { draw: DrawFacts | null; step?: DrawStep }) {
+  const blocked = step?.blockedBecause;
+
   const action =
     step === undefined ? null : (
-      <Row>
-        <Button full variant="primary" onClick={step.run} disabled={step.busy}>
-          {step.busy ? "Working…" : step.label}
-        </Button>
-      </Row>
+      <>
+        {blocked !== undefined && <Status>{blocked}</Status>}
+        <Row>
+          <Button
+            full
+            variant="primary"
+            onClick={step.run}
+            disabled={step.busy || blocked !== undefined}
+          >
+            {step.busy ? "Working…" : step.label}
+          </Button>
+        </Row>
+      </>
     );
 
   if (draw === null) {
     return (
       <Group
         caption="Draw"
-        footnote={
-          step === undefined
-            ? undefined
-            : "Draws run on a cadence rather than on permission. Anyone may start one once the interval has passed, and every step after that is open too."
-        }
+        footnote={step === undefined ? undefined : CADENCE_NOTE}
       >
         <div className="empty">No draw has run yet.</div>
         {action}
@@ -323,7 +343,9 @@ export function DrawPanel({ draw, step }: { draw: DrawFacts | null; step?: DrawS
       footnote={
         draw.state === DrawState.Selecting
           ? "Selection runs in slices. Each transaction advances the walk over encrypted weights by a bounded number of positions."
-          : "Winner selection runs entirely over encrypted balances, weighted by deposit. The random point comes from the protocol's own generator and is never decrypted, so nobody — including the operator — can predict or verify the outcome by inspection."
+          : step === undefined
+            ? "Winner selection runs entirely over encrypted balances, weighted by deposit. The random point comes from the protocol's own generator and is never decrypted, so nobody — including the operator — can predict or verify the outcome by inspection."
+            : CADENCE_NOTE
       }
     >
       <Row

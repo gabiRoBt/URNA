@@ -138,6 +138,13 @@ export default function Page() {
       return {
         label: "Start a draw",
         busy: acting,
+        // A draw with nothing in the reserve settles correctly and pays
+        // nothing, which is the most confusing possible outcome for someone
+        // pressing the button to see what a draw does. Better to say why.
+        blockedBecause:
+          state.unallocatedPrize === 0n
+            ? "The prize reserve is empty, so a draw now would award nothing. The reserve is funded by the operator; the pool's own yield source is switched off on this deployment because it models returns rather than holding them."
+            : undefined,
         run: () =>
           void run("seal", async () => {
             await (await contracts.engine["seal"]!()).wait();

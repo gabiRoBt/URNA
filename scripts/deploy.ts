@@ -31,8 +31,20 @@ import type {
 /** Prize split across tiers, in basis points. Must not exceed 10,000. */
 const TIER_SHARES_BPS = [5_000, 3_000, 2_000];
 
-/** Modelled annual yield, in basis points. */
-const APY_BPS = 500;
+/**
+ * Simulated yield, in basis points, on the deployed pool.
+ *
+ * Zero, deliberately. `SimulatedYieldSource` models a venue with arithmetic —
+ * it holds no tokens — so anything it "accrues" would swell the prize reserve
+ * without anything behind it, and a draw would then announce a prize larger
+ * than the vault could pay. Prizes here come from `PrizeVault.fundPrize`,
+ * which moves real tokens, so every figure the interface shows is backed.
+ *
+ * The model is still in the tree, still tested, and still what a real adapter
+ * would replace. What is switched off is only its contribution to money that
+ * has to exist.
+ */
+const APY_BPS = 0;
 
 /**
  * Right-shift forming the tier bonus: shift 1 gives qualifying positions 1.5x

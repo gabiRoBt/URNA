@@ -70,6 +70,15 @@ const THRESHOLD = 5_000n * UNIT;
 const PRIZE = 4_000n * UNIT;
 
 /**
+ * Left in the reserve after the seeded draw has taken its prize.
+ *
+ * The seeded draw consumes everything it locks, so without this a reviewer
+ * arrives at a pool whose reserve reads zero — and the first draw they start
+ * themselves would award nothing. Backed by real tokens like the first one.
+ */
+const NEXT_PRIZE = 1_250n * UNIT;
+
+/**
  * Gas an account must be funded for: its own operator approval and deposit,
  * about 1.05M together, with headroom.
  *
@@ -385,6 +394,17 @@ async function main(): Promise<void> {
     step("One winner discloses their award");
     await send("disclose", () => disclosure.connect(account).disclose(drawId));
     detail(`${opener.address} is now publicly verifiable at ${opener.award}`);
+  }
+
+  // ── Leave something for the next draw ───────────────────────────────────
+
+  // A reviewer should be able to press "Start a draw" and have it mean
+  // something. The operator approval from earlier still stands, so this is
+  // one mint and one transfer.
+  if ((await vault.unallocatedPrize()) < NEXT_PRIZE) {
+    step("Funding the reserve for the next draw");
+    await send("mint next prize", () => token.mint(operator.address, NEXT_PRIZE));
+    await send("fund next prize", () => vault.fundPrize(NEXT_PRIZE));
   }
 
   // ── Reclaim ─────────────────────────────────────────────────────────────
