@@ -27,8 +27,6 @@ frontend/out/
 *.log
 .DS_Store
 
-# Local tooling config
-.claude/
 
 # Incremental TypeScript build state
 *.tsbuildinfo
