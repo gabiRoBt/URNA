@@ -10,6 +10,7 @@ import {
   MovePanel,
   PoolPanel,
   PositionPanel,
+  RulesPanel,
 } from "@/components/panels";
 import { Button, Group, Row, Status } from "@/components/primitives";
 import { VantageSwitch, type Vantage } from "@/components/ObserverToggle";
@@ -25,7 +26,7 @@ import {
   type TypedDataSigner,
 } from "@/lib/fhevm";
 import { shortAddress } from "@/lib/format";
-import { DrawState, useProtocol } from "@/lib/useProtocol";
+import { DrawState, useDeploymentFacts, useProtocol } from "@/lib/useProtocol";
 import {
   connect,
   hasWallet,
@@ -56,6 +57,7 @@ export default function Page() {
   useEffect(() => setWalletDetected(hasWallet()), []);
 
   const { state, contracts, refresh } = useProtocol(connection);
+  const deploymentFacts = useDeploymentFacts();
 
   // Revealed plaintext lives in memory only, and is dropped whenever the
   // underlying handle changes. Persisting it anywhere would undo the point of
@@ -386,6 +388,8 @@ export default function Page() {
       />
 
       <DrawPanel draw={state.draw} step={drawStep ?? undefined} />
+
+      <RulesPanel facts={deploymentFacts} />
 
       {state.awardHandle !== null && connection !== null && contracts !== null && state.draw !== null && (
         <AwardPanel

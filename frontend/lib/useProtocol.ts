@@ -236,6 +236,74 @@ export function useProtocol(connection: Connection | null) {
   return { state, contracts, loading, error, refresh };
 }
 
+/**
+ * The rules this deployment was built with, read from it.
+ *
+ * Every one of these is stated somewhere in the README, which is exactly why
+ * they are worth reading off the chain instead: a claim about a cadence or a
+ * prize split is only worth what the deployed bytecode says. They never
+ * change for a given deployment, so this reads once and stops.
+ */
+export interface DeploymentFacts {
+  readonly tierSharesBps: number[];
+  readonly drawInterval: number;
+  readonly disclosureInterval: number;
+  readonly maxSlice: number;
+  readonly thresholdSet: boolean;
+}
+
+export function useDeploymentFacts(): DeploymentFacts | null {
+  const [facts, setFacts] = useState<DeploymentFacts | null>(null);
+
+  useEffect(() => {
+    if (!isDeployed) return;
+
+    let live = true;
+    void (async () => {
+      try {
+        const reader = buildPublicContracts();
+        const policy = new Contract(
+          deployment.policy,
+          ABI.TieredWeightPolicy,
+          reader.pool.runner,
+        );
+
+        const tierCount = Number(await reader.engine["tierCount"]!());
+        const shares: number[] = [];
+        for (let index = 0; index < tierCount; index += 1) {
+          shares.push(Number(await reader.engine["tierShareBps"]!(index)));
+        }
+
+        const [drawInterval, disclosureInterval, maxSlice, threshold] = await Promise.all([
+          reader.engine["DRAW_INTERVAL"]!() as Promise<bigint>,
+          reader.pool["DISCLOSURE_INTERVAL"]!() as Promise<bigint>,
+          reader.engine["maxSlice"]!() as Promise<bigint>,
+          policy["thresholdHandle"]!() as Promise<string>,
+        ]);
+
+        if (!live) return;
+        setFacts({
+          tierSharesBps: shares,
+          drawInterval: Number(drawInterval),
+          disclosureInterval: Number(disclosureInterval),
+          maxSlice: Number(maxSlice),
+          thresholdSet: threshold !== ZERO_HANDLE,
+        });
+      } catch {
+        // A deployment that cannot answer simply shows nothing here. This
+        // panel is a courtesy, and failing it must not take the page down.
+        if (live) setFacts(null);
+      }
+    })();
+
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  return facts;
+}
+
 async function readDraw(contracts: Contracts, drawId: bigint): Promise<DrawFacts> {
   const [facts, pointHandle] = await Promise.all([
     contracts.engine["drawFacts"]!(drawId) as Promise<

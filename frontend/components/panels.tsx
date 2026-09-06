@@ -15,7 +15,12 @@ import { Button, Group, Meter, Row, Sealed, Stage, Status } from "./primitives";
 import { ByVantage, Redacted, type Vantage } from "./ObserverToggle";
 import { TOKEN_SYMBOL } from "@/lib/config";
 import { formatAmount, parseAmount } from "@/lib/format";
-import { DrawState, drawProgress, type DrawFacts } from "@/lib/useProtocol";
+import {
+  DrawState,
+  drawProgress,
+  type DeploymentFacts,
+  type DrawFacts,
+} from "@/lib/useProtocol";
 
 /* ── Position ───────────────────────────────────────────────────────── */
 
@@ -300,6 +305,66 @@ export function PoolPanel({
         value={<span className="amount">{formatAmount(prize)}</span>}
       />
       <Row label="Participants" value={<span className="mono">{participants}</span>} />
+    </Group>
+  );
+}
+
+/* ── Rules ──────────────────────────────────────────────────────────── */
+
+/**
+ * What this deployment was built with, read from this deployment.
+ *
+ * Everything here is also written in the README, and a README is a claim. The
+ * point of the panel is that these are not claims: they come from the
+ * bytecode a reviewer is about to put money into, and disagreeing with the
+ * document would be visible in two seconds.
+ */
+export function RulesPanel({ facts }: { facts: DeploymentFacts | null }) {
+  if (facts === null) return null;
+
+  const minutes = (seconds: number): string =>
+    seconds % 3600 === 0
+      ? `${seconds / 3600} h`
+      : seconds % 60 === 0
+        ? `${seconds / 60} min`
+        : `${seconds} s`;
+
+  return (
+    <Group
+      caption="Rules, read from the contracts"
+      footnote="Not copied from the documentation. These are live reads against the deployed bytecode, so anything the README gets wrong shows up here."
+    >
+      <Row
+        label="Prize split"
+        sublabel={`${facts.tierSharesBps.length} tiers, one winner each`}
+        value={
+          <span className="mono">
+            {facts.tierSharesBps.map((bps) => `${bps / 100}%`).join(" / ")}
+          </span>
+        }
+      />
+      <Row
+        label="Draw cadence"
+        sublabel="Anyone may seal once this has passed"
+        value={<span className="mono">{minutes(facts.drawInterval)}</span>}
+      />
+      <Row
+        label="Total-snapshot interval"
+        sublabel="Stops the public total being read around one deposit"
+        value={<span className="mono">{minutes(facts.disclosureInterval)}</span>}
+      />
+      <Row
+        label="Positions per slice"
+        sublabel="Bounded by the coprocessor's depth limit, not by choice"
+        value={<span className="mono">{facts.maxSlice}</span>}
+      />
+      <Row
+        label="Tier threshold"
+        sublabel="A ciphertext — set, but not readable by anyone"
+        value={
+          facts.thresholdSet ? <Sealed label="SET" /> : <span className="row-value">Unset</span>
+        }
+      />
     </Group>
   );
 }
