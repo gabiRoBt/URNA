@@ -71,22 +71,13 @@ async function main(): Promise<void> {
   let completed = 0;
 
   for (;;) {
-    // ── Wait for the cadence ────────────────────────────────────────────────
-
-    const lastSeal = await engine.lastSealAt();
-    if (lastSeal !== 0n) {
-      const now = BigInt((await ethers.provider.getBlock("latest"))?.timestamp ?? 0);
-      const allowedAt = lastSeal + interval;
-      if (now < allowedAt) {
-        say(`next draw allowed in ${allowedAt - now}s`);
-        await sleep(Number(allowedAt - now) * 1000 + POLL_MS);
-        continue;
-      }
-    }
-
     // A draw already in flight is picked up rather than restarted. Somebody
     // else's keeper — or a reviewer pressing buttons in the app — may have
     // taken it partway, and finishing their draw is the same work.
+    //
+    // Checked before the cadence, deliberately. The interval governs when a
+    // *new* draw may start; applying it to one already sealed would leave the
+    // pool waiting on a clock for work that is already overdue.
     let drawId = await engine.currentDrawId();
     let state = drawId === 0n ? settled : await engine.stateOf(drawId);
 
@@ -95,6 +86,19 @@ async function main(): Promise<void> {
         say("nobody has deposited yet; waiting");
         await sleep(POLL_MS);
         continue;
+      }
+
+      // ── Wait for the cadence ──────────────────────────────────────────────
+
+      const lastSeal = await engine.lastSealAt();
+      if (lastSeal !== 0n) {
+        const now = BigInt((await ethers.provider.getBlock("latest"))?.timestamp ?? 0);
+        const allowedAt = lastSeal + interval;
+        if (now < allowedAt) {
+          say(`next draw allowed in ${allowedAt - now}s`);
+          await sleep(Number(allowedAt - now) * 1000 + POLL_MS);
+          continue;
+        }
       }
 
       await topUpIfOwned();

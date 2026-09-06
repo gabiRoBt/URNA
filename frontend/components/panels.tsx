@@ -510,8 +510,21 @@ export function DrawPanel({ draw, step }: { draw: DrawFacts | null; step?: DrawS
       */}
       <Row
         label="Draw point"
-        sublabel="Generated encrypted, never revealed"
-        value={<Sealed handle={draw.drawPointHandle} />}
+        sublabel={
+          draw.state < DrawState.Selecting
+            ? "Generated when the draw opens"
+            : "Generated encrypted, never revealed"
+        }
+        value={
+          // Before opening there is no point, and the zero handle that stands
+          // for "nothing here yet" would otherwise be displayed as though it
+          // were one.
+          draw.state < DrawState.Selecting ? (
+            <span className="row-value">Not yet drawn</span>
+          ) : (
+            <Sealed handle={draw.drawPointHandle} />
+          )
+        }
       />
       <Row label="Positions" value={<span className="mono">{draw.participantCount}</span>} />
       {action}

@@ -80,6 +80,11 @@ export function Wordmark({ height = 36 }: { height?: number }) {
       role="img"
       aria-label="URNA"
     >
+      {/*
+        The word appears twice in the markup — once as the clip, once as the
+        ink — and a screen reader announced it twice with it. The label above
+        is the accessible name; everything inside is drawing.
+      */}
       <defs>
         {/*
           The letters themselves become the clip, so colour can only appear
@@ -87,13 +92,13 @@ export function Wordmark({ height = 36 }: { height?: number }) {
           text would spill into the counters and the gaps between letters.
         */}
         <clipPath id="wordmark-letters">
-          <text x="0" y="62" className="wordmark-text" {...pin}>
+          <text x="0" y="62" className="wordmark-text" aria-hidden="true" {...pin}>
             URNA
           </text>
         </clipPath>
       </defs>
 
-      <text x="0" y="62" className="wordmark-text wordmark-ink" {...pin}>
+      <text x="0" y="62" className="wordmark-text wordmark-ink" aria-hidden="true" {...pin}>
         URNA
       </text>
 
