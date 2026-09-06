@@ -1,4 +1,6 @@
-# URNA
+<p align="center">
+  <img src="docs/urna.png" alt="URNA" width="300">
+</p>
 
 A no-loss prize savings pool where deposits, odds, and winnings stay encrypted, and winner selection runs on-chain over encrypted balances.
 
