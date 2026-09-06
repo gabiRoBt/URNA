@@ -25,42 +25,43 @@ Deployed and exercised end to end against the real coprocessors, not only in moc
 
 | Contract | Address | Role |
 |---|---|---|
-| `ConfidentialPrizePool` | [`0x6787cd0dEa7A2705b5240AF5fc92D5688F3d8053`](https://sepolia.etherscan.io/address/0x6787cd0dEa7A2705b5240AF5fc92D5688F3d8053) | Deposits, withdrawals, encrypted balances |
-| `TicketLedger` | [`0x2d6A3911714b27344827a981a13a6e3A72b7b1B6`](https://sepolia.etherscan.io/address/0x2d6A3911714b27344827a981a13a6e3A72b7b1B6) | Weight register, O(1) seal, copy-on-write |
-| `DrawEngine` | [`0x37E36cb34E9E6Ae2dd151FC60E1d022ebfAF15F8`](https://sepolia.etherscan.io/address/0x37E36cb34E9E6Ae2dd151FC60E1d022ebfAF15F8) | Batched selection over encrypted weights |
-| `PrizeVault` | [`0xF26aFc4E2A2cD1b68aCA1fb189D9C71f389D80F2`](https://sepolia.etherscan.io/address/0xF26aFc4E2A2cD1b68aCA1fb189D9C71f389D80F2) | Prize custody, awards, claims |
-| `FheRandomEntropy` | [`0x8bad0Fd1F5A87E44C85eF9bbA8158312f45a539A`](https://sepolia.etherscan.io/address/0x8bad0Fd1F5A87E44C85eF9bbA8158312f45a539A) | FHE.randEuint64, never decrypted |
-| `TieredWeightPolicy` | [`0x62Ff582C705Ced87871B0946220827Dd16fcf025`](https://sepolia.etherscan.io/address/0x62Ff582C705Ced87871B0946220827Dd16fcf025) | Weight, plus the confidential tier bonus |
-| `DisclosureRegistry` | [`0xd750E54E032e91a0365f539e36018D452A20b95a`](https://sepolia.etherscan.io/address/0xd750E54E032e91a0365f539e36018D452A20b95a) | Who may read a settled award |
-| `SimulatedYieldSource` | [`0xC98b27c6a8A447615d51fFd348238b31Ae2AB1d9`](https://sepolia.etherscan.io/address/0xC98b27c6a8A447615d51fFd348238b31Ae2AB1d9) | Modelled venue |
-| `ConfidentialTokenMock` | [`0x3C26B14e6832fb40e8ACBEb1a5b7e2C1D7dD90Ad`](https://sepolia.etherscan.io/address/0x3C26B14e6832fb40e8ACBEb1a5b7e2C1D7dD90Ad) | Test asset, open minting |
+| `ConfidentialPrizePool` | [`0x17546d9d321F50B570e09014008E2187d3bf58a0`](https://sepolia.etherscan.io/address/0x17546d9d321F50B570e09014008E2187d3bf58a0) | Deposits, withdrawals, encrypted balances |
+| `TicketLedger` | [`0x8caB02ad0Bfc5016CccFf3f844F304F094ccF767`](https://sepolia.etherscan.io/address/0x8caB02ad0Bfc5016CccFf3f844F304F094ccF767) | Weight register, O(1) seal, copy-on-write |
+| `DrawEngine` | [`0xB388c83F2fFc8251C3F6340616600B9f83976cE7`](https://sepolia.etherscan.io/address/0xB388c83F2fFc8251C3F6340616600B9f83976cE7) | Batched selection over encrypted weights |
+| `PrizeVault` | [`0xC540214A657d8D7CE20a6E3A4966CA0fFf2D571d`](https://sepolia.etherscan.io/address/0xC540214A657d8D7CE20a6E3A4966CA0fFf2D571d) | Prize custody, awards, claims |
+| `FheRandomEntropy` | [`0xA275dcB38827ff45B2894B05AcAcBFdE7Af54D03`](https://sepolia.etherscan.io/address/0xA275dcB38827ff45B2894B05AcAcBFdE7Af54D03) | FHE.randEuint64, never decrypted |
+| `TieredWeightPolicy` | [`0x2024292b6dD5C5374Fe921287cBa3F9911e88B20`](https://sepolia.etherscan.io/address/0x2024292b6dD5C5374Fe921287cBa3F9911e88B20) | Weight, plus the confidential tier bonus |
+| `DisclosureRegistry` | [`0xd98db1581FF1d82f65f8b53DA517Ea3438233416`](https://sepolia.etherscan.io/address/0xd98db1581FF1d82f65f8b53DA517Ea3438233416) | Who may read a settled award |
+| `SimulatedYieldSource` | [`0xbF53ae0364ce1899d3200211B57e45B1DE67fD4c`](https://sepolia.etherscan.io/address/0xbF53ae0364ce1899d3200211B57e45B1DE67fD4c) | Modelled venue |
+| `ConfidentialTokenMock` | [`0xc5f14c03f5de8eB4687279079a9136DcFA323115`](https://sepolia.etherscan.io/address/0xc5f14c03f5de8eB4687279079a9136DcFA323115) | Test asset, open minting |
 
 ### A draw that actually ran
 
-Draw 2 settled over 13 positions against the live coprocessors. Every step below is on-chain and clickable.
+Draw 1 settled over 12 positions against the live coprocessors. Every step below is on-chain and clickable.
 
 | | |
 |---|---|
-| Positions | 13 |
+| Positions | 12 |
 | Deposits, public total | 80,100 cUSD |
 | Draw weight | 116,000 |
 | Prize | 4,000 cUSD, split 50 / 30 / 20 across three tiers |
 | Selection | 6 transactions |
 
-The twelve deposits were deliberately uneven and straddle the tier threshold. They sum to the 80,100 published above, while the draw weight is 116,000. **That gap is the tier bonus, and it is the one number on this page worth staring at.** Six positions sit at or above an encrypted threshold and carry 1.5x, so the excess is exactly half of what those six hold — and neither public figure says which six they are.
+The deposits were deliberately uneven and straddle the tier threshold. They sum to the 80,100 published above, while the draw weight is 116,000. **That gap is the one number here worth staring at.** Positions at or above an encrypted threshold carry 1.5x, so the extra 35,900 is exactly half of what those positions hold — and neither public figure says which positions they are.
 
 | Step | Transaction | Gas |
 |---|---|---|
-| A deposit, encrypted in the browser before it was sent | [0x9faea3fb…d8ba83](https://sepolia.etherscan.io/tx/0x9faea3fbc26893c034668a60a42b6f7466660a5e43a10840a001bd177ed8ba83) | 955,204 |
-| Publishing the pool's total, checked against KMS signatures | [0xbfd852c3…6622ff](https://sepolia.etherscan.io/tx/0xbfd852c36561bec1e19789cac43c90869b878c2d84ce61a6a5f0929c8d6622ff) | 410,901 |
-| Sealing the snapshot — O(1), whatever its size | [0xf30ce175…da6490](https://sepolia.etherscan.io/tx/0xf30ce175d61d48330dbd678a83cfd741560fb65b35c9ac36a3351c1303da6490) | 181,951 |
-| Opening: the draw point is generated here, and never decrypted | [0xc77017dd…a288e6](https://sepolia.etherscan.io/tx/0xc77017dd7680520cd95871773fc55157099bcd4cf0b089b729d2984b93a288e6) | 333,991 |
-| The selection walk, first of 6 slices | [0x95e7b033…e92e8e](https://sepolia.etherscan.io/tx/0x95e7b033ce56b539baaa4e4c1635c0f831aada3b16ea9bbd97102ca77de92e8e) | 2,535,424 |
-| A winner opening their own award | [0x9384cded…20c01a](https://sepolia.etherscan.io/tx/0x9384cdedfae2606a2a33aab23923e8d4e78cc2f09bd7e87bf268222b5d20c01a) | 90,543 |
+| A deposit, encrypted in the browser before it was sent | [0xab065c2d…6a9b75](https://sepolia.etherscan.io/tx/0xab065c2d19c1857145d8e562d558daec055478958c65a55b497cf7032d6a9b75) | 947,029 |
+| Publishing the pool's total, checked against KMS signatures | [0x9b874856…badbe8](https://sepolia.etherscan.io/tx/0x9b874856f45a5a5bf6484734aafa4e065298c550d82e735b3edfec610cbadbe8) | 393,813 |
+| Sealing the snapshot — O(1), whatever its size | [0xa1551a95…7d4b72](https://sepolia.etherscan.io/tx/0xa1551a95787b7c970b0ffc3606b07e9faf88e5ccc75be43e1e71fc28e37d4b72) | 217,230 |
+| Opening: the draw point is generated here, and never decrypted | [0x1f9718bf…d88c89](https://sepolia.etherscan.io/tx/0x1f9718bf3226f72631556d4f6fd49b132342a52e3ab3b0249b1ebd446cd88c89) | 334,002 |
+| The selection walk, first of 6 slices | [0xec7e6dca…99266a](https://sepolia.etherscan.io/tx/0xec7e6dca88ae021a05fd4671d780345474ae2a3ba11662db2eb569e6ca99266a) | 2,535,424 |
+| A winner opening their own award | [0x2161fdf0…8e386b](https://sepolia.etherscan.io/tx/0x2161fdf0ae6ec4360b8a89330def2f66b8160020038a70c2c3feb40b898e386b) | 90,543 |
+| A winner claiming, and the tokens moving | [0xad3c01af…2aa136](https://sepolia.etherscan.io/tx/0xad3c01af58ac20632fc5a353cdb4c5784225639ebded39a7d7baa465322aa136) | 396,398 |
 
-Three accounts were paid, one per tier, and their awards sum to exactly the prize. Only one chose to be seen: [`0x8a53…c41D`](https://sepolia.etherscan.io/address/0x8a53BFBc206878bA91420Ea00e867D3fDdFCc41D) at 800 cUSD, now publicly verifiable through the `DisclosureRegistry`. The other two awards sit on-chain and unreadable — by onlookers, by the operator, and by us.
+3 accounts were paid, one per tier, and their awards sum to exactly the prize. Only one chose to be seen: [`0x8a53…c41D`](https://sepolia.etherscan.io/address/0x8a53BFBc206878bA91420Ea00e867D3fDdFCc41D) at 1,200 cUSD, now publicly verifiable through the `DisclosureRegistry`. The other awards sit on-chain and unreadable — by onlookers, by the operator, and by us.
 
-One of the 13 positions is an account emptied by an earlier run. It carries zero weight and can never win, and it is still listed because the participant list only grows — see [Known limits](#known-limits).
+The last row is the one worth checking. `0x8a53…c41D` held 0 of the token before claiming and 1,200 after — the award, in full, moved by `confidentialTransfer`. A prize here is money rather than a figure the interface reports.
 
 `ConfidentialTokenMock` mints on request, so a reviewer can fund themselves and run the whole cycle without asking anyone for an asset.
 
