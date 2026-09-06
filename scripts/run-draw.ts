@@ -1,7 +1,12 @@
 import { ethers, fhevm } from "hardhat";
 
 import deployment from "../deployments/11155111.json";
-import type { DrawEngine, PrizeVault, TicketLedger } from "../types";
+import type {
+  ConfidentialTokenMock,
+  DrawEngine,
+  PrizeVault,
+  TicketLedger,
+} from "../types";
 
 /**
  * Runs one draw against the live deployment.
@@ -33,6 +38,7 @@ async function main(): Promise<void> {
   const at = async <T>(name: string, address: string): Promise<T> =>
     (await ethers.getContractAt(name, address, signer)) as unknown as T;
 
+  const token = await at<ConfidentialTokenMock>("ConfidentialTokenMock", deployment.token);
   const ledger = await at<TicketLedger>("TicketLedger", deployment.ledger);
   const vault = await at<PrizeVault>("PrizeVault", deployment.vault);
   const engine = await at<DrawEngine>("DrawEngine", deployment.engine);
@@ -56,6 +62,13 @@ async function main(): Promise<void> {
   let reserve = await vault.unallocatedPrize();
   if (reserve === 0n) {
     say(`Reserve is empty; funding ${PRIZE}`);
+
+    // The reserve holds tokens, not a tally, so the operator has to mint what
+    // it is about to put up and let the vault move it. Skipping either leaves
+    // a prize that settles correctly and pays nothing.
+    const deadline = ((await ethers.provider.getBlock("latest"))?.timestamp ?? 0) + 86_400;
+    await (await token.mint(signer.address, PRIZE)).wait();
+    await (await token.setOperator(deployment.vault, deadline)).wait();
     await (await vault.fundPrize(PRIZE)).wait();
     reserve = await vault.unallocatedPrize();
   }

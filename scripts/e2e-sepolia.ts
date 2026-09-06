@@ -93,6 +93,12 @@ async function main(): Promise<void> {
   // ── Prize ───────────────────────────────────────────────────────────────
 
   step("Funding the prize reserve");
+
+  // Tokens, not a tally: the vault pays claims out of its own balance.
+  await (await token.mint(signer.address, PRIZE)).wait();
+  await (
+    await token.setOperator(deployment.vault, Math.floor(Date.now() / 1000) + 86_400)
+  ).wait();
   await (await vault.fundPrize(PRIZE)).wait();
   detail(`reserve now ${await vault.unallocatedPrize()}`);
 
