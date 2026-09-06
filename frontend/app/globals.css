@@ -216,10 +216,20 @@ body {
   padding-bottom: var(--space-3);
 }
 
+/*
+ * The label yields, the value does not.
+ *
+ * `flex-shrink: 0` here was wrong in a way only a narrow screen shows: a row
+ * whose sublabel runs long grew the label past the row and squeezed the value
+ * to nothing, so on a phone the pool's total rendered at zero width and
+ * simply was not there. The label is prose and can wrap; the figure beside it
+ * is the point of the row and keeps its space.
+ */
 .row-label {
   font-size: 15px;
   color: var(--ink);
-  flex-shrink: 0;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .row-sublabel {
@@ -233,7 +243,8 @@ body {
   font-size: 15px;
   color: var(--ink-secondary);
   text-align: right;
-  min-width: 0;
+  flex: 0 0 auto;
+  max-width: 60%;
   overflow-wrap: anywhere;
 }
 
