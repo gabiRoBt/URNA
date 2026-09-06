@@ -59,14 +59,36 @@ export function Row({
  * read as "missing" or "still loading"; this reads as "present, and not yours
  * to see" — which is the actual state, and the whole point of the protocol.
  */
-export function Sealed({ label = "SEALED" }: { label?: string }) {
-  return (
+export function Sealed({
+  label = "SEALED",
+  handle,
+}: {
+  label?: string;
+  /** The ciphertext handle this stands for, if there is one to show. */
+  handle?: string | null;
+}) {
+  const seal = (
     <span className="sealed" title="Encrypted on-chain. Only the holder can read it.">
       <svg className="sealed-mark" viewBox="0 0 9 11" aria-hidden="true">
         <path d="M2 4.5V3a2.5 2.5 0 0 1 5 0v1.5" />
         <rect x="0.7" y="4.5" width="7.6" height="5.8" rx="1" />
       </svg>
       {label}
+    </span>
+  );
+
+  if (handle === undefined || handle === null) return seal;
+
+  // The handle underneath, because "SEALED" alone can be read as the
+  // interface declining to show a number it has. This is the number it has:
+  // thirty-two bytes that address a ciphertext, and no more the value than a
+  // shelf mark is a book.
+  return (
+    <span className="sealed-with-handle">
+      {seal}
+      <span className="sealed-handle" title={handle}>
+        {handle.slice(0, 10)}…{handle.slice(-8)}
+      </span>
     </span>
   );
 }

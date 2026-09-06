@@ -288,6 +288,7 @@ export default function Page() {
       <PositionPanel
         connected={connection !== null}
         hasPosition={state.balanceHandle !== null}
+        handle={state.balanceHandle}
         revealed={revealedBalance}
         busy={busy}
         vantage={vantage}
@@ -336,6 +337,20 @@ export default function Page() {
         <MovePanel
           busy={busy}
           hasPosition={state.balanceHandle !== null}
+          approved={state.poolApproved}
+          onApprove={() =>
+            void run("approve", async () => {
+              // Chain time, not the browser's. A testnet clock can sit well
+              // away from the machine's, and an approval dated in the chain's
+              // past is refused when it is used rather than when it is set.
+              const block = await connection.signer.provider!.getBlock("latest");
+              const deadline = (block?.timestamp ?? 0) + 365 * 24 * 60 * 60;
+              await (
+                await contracts.token["setOperator"]!(deployment.pool, deadline)
+              ).wait();
+              return "Pool approved. It can move only what you tell it to.";
+            })
+          }
           onDeposit={(amount) =>
             void run("deposit", async () => {
               const { handle, proof } = await encryptAmount(
@@ -375,6 +390,7 @@ export default function Page() {
       {state.awardHandle !== null && connection !== null && contracts !== null && state.draw !== null && (
         <AwardPanel
           drawId={state.draw.drawId}
+          handle={state.awardHandle}
           isPublic={state.awardIsPublic}
           hasClaimed={state.hasClaimed}
           revealed={revealedAward}

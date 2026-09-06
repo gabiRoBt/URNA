@@ -716,3 +716,18 @@ body {
     animation-duration: 0.01ms !important;
   }
 }
+
+/* A sealed value, with the ciphertext handle it stands for. */
+.sealed-with-handle {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.sealed-handle {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-tertiary);
+  letter-spacing: -0.01em;
+}

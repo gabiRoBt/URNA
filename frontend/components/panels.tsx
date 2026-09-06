@@ -22,6 +22,7 @@ import { DrawState, drawProgress, type DrawFacts } from "@/lib/useProtocol";
 export function PositionPanel({
   connected,
   hasPosition,
+  handle,
   revealed,
   busy,
   vantage,
@@ -30,6 +31,8 @@ export function PositionPanel({
 }: {
   connected: boolean;
   hasPosition: boolean;
+  /** Handle to the encrypted balance, shown so a reader can see it is one. */
+  handle?: string | null;
   revealed: bigint | null;
   busy: string | null;
   vantage: Vantage;
@@ -71,7 +74,7 @@ export function PositionPanel({
             observer={<Redacted width={104} />}
             holder={
               revealed === null ? (
-                <Sealed />
+                <Sealed handle={handle} />
               ) : (
                 <span className="amount row-value-strong">{formatAmount(revealed)}</span>
               )
@@ -119,11 +122,16 @@ export function PositionPanel({
 export function MovePanel({
   busy,
   hasPosition,
+  approved,
+  onApprove,
   onDeposit,
   onWithdraw,
 }: {
   busy: string | null;
   hasPosition: boolean;
+  /** Whether the pool may move this account's tokens. */
+  approved: boolean;
+  onApprove: () => void;
   onDeposit: (amount: bigint) => void;
   onWithdraw: (amount: bigint) => void;
 }) {
@@ -138,6 +146,30 @@ export function MovePanel({
       caption="Move funds"
       footnote="Withdrawals are always available, including while a draw is running. A position sealed into a draw keeps the odds it had when the draw closed."
     >
+      {/*
+        ERC-7984 has no `approve`; a holder names an operator instead, and the
+        pool has to be one before it can move anything. Shown as its own step
+        because a deposit that reverts for a missing approval teaches nothing,
+        and because this is the step people expect to see and would otherwise
+        assume was skipped.
+      */}
+      <Row
+        label="Pool approval"
+        sublabel={
+          approved
+            ? "The pool may move your tokens on your instruction"
+            : "ERC-7984 names an operator rather than granting an allowance"
+        }
+        value={
+          approved ? (
+            <span className="row-value-positive">Granted</span>
+          ) : (
+            <Button onClick={onApprove} disabled={busy !== null}>
+              {busy === "approve" ? "Working…" : "Approve pool"}
+            </Button>
+          )
+        }
+      />
       <Row>
         <div className="field">
           <input
@@ -147,10 +179,11 @@ export function MovePanel({
             value={depositText}
             onChange={(event) => setDepositText(event.target.value)}
             aria-label="Deposit amount"
+            disabled={!approved}
           />
           <Button
             variant="primary"
-            disabled={depositAmount === null || busy !== null}
+            disabled={depositAmount === null || busy !== null || !approved}
             onClick={() => depositAmount !== null && onDeposit(depositAmount)}
           >
             {busy === "deposit" ? "Working…" : "Deposit"}
@@ -413,7 +446,7 @@ export function DrawPanel({ draw, step }: { draw: DrawFacts | null; step?: DrawS
       <Row
         label="Draw point"
         sublabel="Generated encrypted, never revealed"
-        value={<Sealed />}
+        value={<Sealed handle={draw.drawPointHandle} />}
       />
       <Row label="Positions" value={<span className="mono">{draw.participantCount}</span>} />
       {action}
@@ -425,6 +458,7 @@ export function DrawPanel({ draw, step }: { draw: DrawFacts | null; step?: DrawS
 
 export function AwardPanel({
   drawId,
+  handle,
   isPublic,
   hasClaimed,
   revealed,
@@ -435,6 +469,8 @@ export function AwardPanel({
   onDisclose,
 }: {
   drawId: bigint;
+  /** Handle to the encrypted award. */
+  handle?: string | null;
   isPublic: boolean;
   hasClaimed: boolean;
   revealed: bigint | null;
@@ -474,7 +510,7 @@ export function AwardPanel({
             }
             holder={
               revealed === null ? (
-                <Sealed />
+                <Sealed handle={handle} />
               ) : (
                 <span
                   className={won ? "amount row-value-positive" : "amount row-value-strong"}

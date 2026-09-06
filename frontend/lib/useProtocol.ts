@@ -61,6 +61,15 @@ export interface ProtocolState {
    * total sit still would read a working defence as a broken page.
    */
   readonly principalPublishedAt: number;
+  /**
+   * Whether the connected account has made the pool an operator on the token.
+   *
+   * ERC-7984's answer to an allowance. Carried in state rather than discovered
+   * at deposit time so the interface can show the step instead of failing at
+   * it — a deposit that reverts for a missing approval is the least helpful
+   * way to learn one is needed.
+   */
+  readonly poolApproved: boolean;
   readonly unallocatedPrize: bigint;
   readonly participantCount: number;
 
@@ -74,6 +83,7 @@ const EMPTY: ProtocolState = {
   hasClaimed: false,
   publishedPrincipal: 0n,
   principalPublishedAt: 0,
+  poolApproved: false,
   unallocatedPrize: 0n,
   participantCount: 0,
   draw: null,
@@ -168,10 +178,16 @@ export function useProtocol(connection: Connection | null) {
       let awardHandle: string | null = null;
       let awardIsPublic = false;
       let hasClaimed = false;
+      let poolApproved = false;
 
       if (connection !== null && contracts !== null) {
         const raw = (await contracts.pool["balanceOf"]!(connection.address)) as string;
         balanceHandle = raw === ZERO_HANDLE ? null : raw;
+
+        poolApproved = (await contracts.token["isOperator"]!(
+          connection.address,
+          deployment.pool,
+        )) as boolean;
 
         if (drawId !== 0n) {
           const award = (await contracts.vault["awardOf"]!(
@@ -199,6 +215,7 @@ export function useProtocol(connection: Connection | null) {
         awardHandle,
         awardIsPublic,
         hasClaimed,
+        poolApproved,
         publishedPrincipal,
         principalPublishedAt: Number(principalPublishedAt),
         unallocatedPrize,
