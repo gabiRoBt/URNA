@@ -23,6 +23,15 @@ import { Wordmark } from "@/components/Wordmark";
 const UNIT = 1_000_000n;
 
 /**
+ * How many positions the page describes.
+ *
+ * One constant rather than three literals, because the ring and the pool
+ * panel used to disagree — 24 dots drawn above a stated count of 47 — on a
+ * page whose whole standard is that its figures add up.
+ */
+const POSITIONS = 24;
+
+/**
  * Figures chosen to be internally consistent, not merely plausible. A pool of
  * 4,812,500 at 5% for half a year yields about 120,300; total weight sits
  * above the deposit total because positions over the tier threshold carry a
@@ -69,7 +78,7 @@ export default function PreviewPage() {
         body="Everyone puts money into a shared pot. The pot earns interest. Nobody loses anything — you can take your deposit back whenever you like. What is at stake is only the interest, and at each draw it goes to one depositor, chosen at random. Deposit more, and your chance is proportionally larger."
       />
 
-      <UrnaScene participants={24} youIndex={3} phase="idle" />
+      <UrnaScene participants={POSITIONS} youIndex={3} phase="idle" />
 
       <Section
         number={2}
@@ -154,7 +163,7 @@ export default function PreviewPage() {
         body="Not everything is hidden, and pretending otherwise would be dishonest. The pool's total is public because the venue holding the money knows how much it holds. An aggregate says nothing about its parts: knowing a pool holds 4.8 million tells you nothing about who holds what."
       />
 
-      <PoolPanel principal={DEPOSITS} prize={PRIZE} participants={47} />
+      <PoolPanel principal={DEPOSITS} prize={PRIZE} participants={POSITIONS} />
 
       <Section
         number={6}
@@ -163,7 +172,7 @@ export default function PreviewPage() {
       />
 
       <UrnaScene
-        participants={24}
+        participants={POSITIONS}
         youIndex={3}
         phase={phase}
         progress={progress}
