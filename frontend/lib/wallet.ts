@@ -34,6 +34,36 @@ export function hasWallet(): boolean {
   return typeof window !== "undefined" && window.ethereum !== undefined;
 }
 
+/**
+ * Reconnects without prompting, if the wallet already trusts this site.
+ *
+ * `eth_accounts` reports what has already been authorised and never opens a
+ * dialogue; `eth_requestAccounts` asks. Refreshing the page was dropping the
+ * connection and putting "Connect wallet" back in front of someone who had
+ * connected a minute earlier, along with everything they had revealed. This
+ * restores it silently, and returns null when there is genuinely nothing to
+ * restore.
+ */
+export async function restore(): Promise<Connection | null> {
+  const injected = window.ethereum;
+  if (injected === undefined) return null;
+
+  const provider = new BrowserProvider(injected);
+  const accounts = (await provider.send("eth_accounts", [])) as string[];
+  if (accounts.length === 0) return null;
+
+  const signer = await provider.getSigner();
+  const network = await provider.getNetwork();
+
+  return {
+    address: await signer.getAddress(),
+    chainId: Number(network.chainId),
+    provider,
+    signer,
+    injected,
+  };
+}
+
 export async function connect(): Promise<Connection> {
   const injected = window.ethereum;
   if (injected === undefined) {

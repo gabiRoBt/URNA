@@ -31,6 +31,7 @@ import {
   connect,
   hasWallet,
   readableError,
+  restore,
   switchToDeploymentChain,
   type Connection,
 } from "@/lib/wallet";
@@ -54,7 +55,16 @@ export default function Page() {
   // might say otherwise, and the two renderings would disagree. Deferring it
   // to an effect means the first paint matches on both sides.
   const [walletDetected, setWalletDetected] = useState(false);
-  useEffect(() => setWalletDetected(hasWallet()), []);
+  useEffect(() => {
+    setWalletDetected(hasWallet());
+
+    // If the wallet already trusts this site, pick the connection back up
+    // rather than asking again. A refresh should not cost someone their
+    // session, and this asks nothing of them.
+    void restore().then((existing) => {
+      if (existing !== null) setConnection(existing);
+    });
+  }, []);
 
   const { state, contracts, refresh } = useProtocol(connection);
   const deploymentFacts = useDeploymentFacts();
