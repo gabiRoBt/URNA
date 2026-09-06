@@ -34,9 +34,6 @@ import type {
 /** Topped up when the reserve is empty and this signer is the vault's owner. */
 const TOP_UP = 1_250n * 10n ** 6n;
 
-/** Positions per transaction. Below the engine's own ceiling. */
-const SLICE = 10;
-
 /** How often to look again while waiting for the cadence. */
 const POLL_MS = 15_000;
 
@@ -63,9 +60,14 @@ async function main(): Promise<void> {
   const limit = Number(process.env["KEEPER_DRAWS"] ?? 0);
   const interval = await engine.DRAW_INTERVAL();
 
+  // Asked for rather than assumed. The engine clamps the request to its own
+  // ceiling anyway, so the only thing a literal here could do is be smaller
+  // than the deployment allows and quietly cost extra transactions.
+  const slice = await engine.maxSlice();
+
   process.stdout.write(
     `\n  Keeping draws for ${deployment.pool} as ${signer.address}\n` +
-      `  cadence ${interval}s, slice ${SLICE}${limit > 0 ? `, stopping after ${limit} draws` : ""}\n\n`,
+      `  cadence ${interval}s, slice ${slice}${limit > 0 ? `, stopping after ${limit} draws` : ""}\n\n`,
   );
 
   let completed = 0;
@@ -141,7 +143,7 @@ async function main(): Promise<void> {
 
     let slices = 0;
     while ((await engine.stateOf(drawId)) !== settled) {
-      const receipt = await (await engine.advance(drawId, SLICE)).wait();
+      const receipt = await (await engine.advance(drawId, slice)).wait();
       slices += 1;
       say(`slice ${slices}: ${receipt?.gasUsed.toLocaleString()} gas`);
     }

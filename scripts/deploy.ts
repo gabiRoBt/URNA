@@ -32,6 +32,22 @@ import type {
 const TIER_SHARES_BPS = [5_000, 3_000, 2_000];
 
 /**
+ * Positions settled per `advance` on the deployed pool.
+ *
+ * The contract's own default is 10, which is the right conservative value for
+ * a deployment nobody has measured. This one has been measured: the depth
+ * model puts the ceiling at 28 positions and its 75% budget at 21, and 20
+ * sits inside both.
+ *
+ * The reason to spend that headroom is not gas — the total is much the same
+ * either way — it is signatures. A draw over a dozen positions took six
+ * transactions at a slice of 10 and takes three at 20, and someone trying the
+ * pool for the first time should not have to approve six prompts to watch one
+ * draw finish.
+ */
+const MAX_SLICE = 20;
+
+/**
  * Simulated yield, in basis points, on the deployed pool.
  *
  * Zero, deliberately. `SimulatedYieldSource` models a venue with arithmetic —
@@ -155,6 +171,7 @@ async function main(): Promise<void> {
     yieldSource.wire(await pool.getAddress(), await vault.getAddress()),
   );
   await send("configureTiers", engine.configureTiers(TIER_SHARES_BPS));
+  await send("setMaxSlice", engine.setMaxSlice(MAX_SLICE));
 
   const gasPrice = (await ethers.provider.getFeeData()).gasPrice ?? 0n;
 

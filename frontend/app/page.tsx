@@ -207,7 +207,12 @@ export default function Page() {
         busy: acting,
         run: () =>
           void run("advance", async () => {
-            await (await contracts.engine["advance"]!(draw.drawId, 10)).wait();
+            // The engine caps this at its own `maxSlice`, so the number here
+            // only matters for being no smaller. Reading it means retuning
+            // the deployment retunes the interface, rather than leaving a
+            // literal behind to disagree with the chain.
+            const slice = deploymentFacts?.maxSlice ?? 10;
+            await (await contracts.engine["advance"]!(draw.drawId, slice)).wait();
             return "Slice done. Every position in it was visited at identical cost.";
           }),
       };
