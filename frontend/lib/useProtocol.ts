@@ -52,6 +52,15 @@ export interface ProtocolState {
   readonly hasClaimed: boolean;
 
   readonly publishedPrincipal: bigint;
+  /**
+   * When that total was last snapshotted, in seconds. Zero if never.
+   *
+   * Carried because the figure is deliberately allowed to lag: snapshots are
+   * rate-limited on-chain so they cannot be taken either side of a single
+   * deposit. Without showing the age, a visitor who deposits and sees the
+   * total sit still would read a working defence as a broken page.
+   */
+  readonly principalPublishedAt: number;
   readonly unallocatedPrize: bigint;
   readonly participantCount: number;
 
@@ -64,6 +73,7 @@ const EMPTY: ProtocolState = {
   awardIsPublic: false,
   hasClaimed: false,
   publishedPrincipal: 0n,
+  principalPublishedAt: 0,
   unallocatedPrize: 0n,
   participantCount: 0,
   draw: null,
@@ -140,11 +150,13 @@ export function useProtocol(connection: Connection | null) {
     setError(null);
 
     try {
-      const [publishedPrincipal, unallocatedPrize, participantCount] = await Promise.all([
-        reader.pool["publishedPrincipal"]!() as Promise<bigint>,
-        reader.vault["unallocatedPrize"]!() as Promise<bigint>,
-        reader.ledger["participantCount"]!() as Promise<bigint>,
-      ]);
+      const [publishedPrincipal, principalPublishedAt, unallocatedPrize, participantCount] =
+        await Promise.all([
+          reader.pool["publishedPrincipal"]!() as Promise<bigint>,
+          reader.pool["lastDisclosureAt"]!() as Promise<bigint>,
+          reader.vault["unallocatedPrize"]!() as Promise<bigint>,
+          reader.ledger["participantCount"]!() as Promise<bigint>,
+        ]);
 
       const drawId = (await reader.engine["currentDrawId"]!()) as bigint;
       const draw = drawId === 0n ? null : await readDraw(reader, drawId);
@@ -188,6 +200,7 @@ export function useProtocol(connection: Connection | null) {
         awardIsPublic,
         hasClaimed,
         publishedPrincipal,
+        principalPublishedAt: Number(principalPublishedAt),
         unallocatedPrize,
         participantCount: Number(participantCount),
         draw,

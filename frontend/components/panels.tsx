@@ -219,14 +219,38 @@ export function FaucetPanel({
 
 /* ── Pool ───────────────────────────────────────────────────────────── */
 
+/**
+ * Describes how old the published total is.
+ *
+ * The figure is allowed to lag on purpose. Snapshots of the encrypted total
+ * are rate-limited on-chain, because two of them taken either side of one
+ * deposit would differ by exactly that deposit. Saying so under the number
+ * turns a defence that looks like a stale page into the thing it is.
+ */
+function snapshotAge(publishedAt: number): string {
+  if (publishedAt === 0) return "Not published yet";
+
+  const minutes = Math.max(0, Math.floor(Date.now() / 1000 - publishedAt) / 60);
+  const when =
+    minutes < 1
+      ? "just now"
+      : minutes < 60
+        ? `${Math.floor(minutes)} min ago`
+        : `${Math.floor(minutes / 60)} h ago`;
+
+  return `Snapshot taken ${when} — at most one an hour, so it cannot be read around a deposit`;
+}
+
 export function PoolPanel({
   principal,
   prize,
   participants,
+  publishedAt = 0,
 }: {
   principal: bigint;
   prize: bigint;
   participants: number;
+  publishedAt?: number;
 }) {
   return (
     <Group
@@ -235,6 +259,7 @@ export function PoolPanel({
     >
       <Row
         label="Total deposits"
+        sublabel={snapshotAge(publishedAt)}
         value={<span className="amount">{formatAmount(principal)}</span>}
       />
       <Row

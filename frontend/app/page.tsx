@@ -282,6 +282,7 @@ export default function Page() {
         principal={state.publishedPrincipal}
         prize={state.unallocatedPrize}
         participants={state.participantCount}
+        publishedAt={state.principalPublishedAt}
       />
 
       <DrawPanel draw={state.draw} />
