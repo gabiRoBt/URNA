@@ -273,11 +273,42 @@ export function PoolPanel({
 
 /* ── Draw ───────────────────────────────────────────────────────────── */
 
-export function DrawPanel({ draw }: { draw: DrawFacts | null }) {
+/**
+ * One step of the draw, offered to whoever is looking.
+ *
+ * Sealing used to be the operator's alone, which made a draw something a
+ * visitor could read about and never cause. Every step is permissionless now,
+ * so the panel offers the next one — and a reviewer can take a pool from
+ * sealed to settled without asking anyone for a key.
+ */
+export interface DrawStep {
+  readonly label: string;
+  readonly busy: boolean;
+  readonly run: () => void;
+}
+
+export function DrawPanel({ draw, step }: { draw: DrawFacts | null; step?: DrawStep }) {
+  const action =
+    step === undefined ? null : (
+      <Row>
+        <Button full variant="primary" onClick={step.run} disabled={step.busy}>
+          {step.busy ? "Working…" : step.label}
+        </Button>
+      </Row>
+    );
+
   if (draw === null) {
     return (
-      <Group caption="Draw">
+      <Group
+        caption="Draw"
+        footnote={
+          step === undefined
+            ? undefined
+            : "Draws run on a cadence rather than on permission. Anyone may start one once the interval has passed, and every step after that is open too."
+        }
+      >
         <div className="empty">No draw has run yet.</div>
+        {action}
       </Group>
     );
   }
@@ -363,6 +394,7 @@ export function DrawPanel({ draw }: { draw: DrawFacts | null }) {
         value={<Sealed />}
       />
       <Row label="Positions" value={<span className="mono">{draw.participantCount}</span>} />
+      {action}
     </Group>
   );
 }

@@ -72,6 +72,15 @@ export function readableError(error: unknown): string {
     const candidate = error as { shortMessage?: string; reason?: string; message?: string; code?: number };
 
     if (candidate.code === 4001) return "Request rejected in wallet.";
+
+    // Not a contract error, so it never reaches the table below, and the
+    // node's own wording is a wall of wei.
+    if (
+      typeof candidate.message === "string" &&
+      candidate.message.includes("insufficient funds")
+    ) {
+      return "Not enough Sepolia ETH in this wallet to pay for gas.";
+    }
     if (candidate.reason !== undefined && candidate.reason !== "") return candidate.reason;
     if (candidate.shortMessage !== undefined) return candidate.shortMessage;
 
@@ -89,7 +98,41 @@ export function readableError(error: unknown): string {
 }
 
 /** `ThresholdNotSet` becomes `Threshold not set`. */
+/**
+ * Plain sentences for the failures a user can actually cause.
+ *
+ * The fallback below turns `ERC7984UnauthorizedSpender` into "Erc7984
+ * unauthorized spender", which is a contract's vocabulary spoken at someone
+ * who never opened the contract. Each entry here says what happened and what
+ * to do about it; anything not listed still degrades to the readable-ish
+ * fallback rather than to a hex blob.
+ */
+const EXPLAINED: Record<string, string> = {
+  ERC7984UnauthorizedSpender:
+    "The pool is not approved to move your tokens yet. Use the faucet panel once — it mints and approves in the same step.",
+  ERC7984ZeroBalance: "That account holds none of this token.",
+  NothingDeposited: "You have no position in the pool yet. Deposit first.",
+  NothingToClaim: "There is nothing to claim for this draw.",
+  AlreadyClaimed: "This award has already been claimed.",
+  AlreadyDisclosed: "This award is already public. Disclosure cannot be undone.",
+  NoAwardRecorded: "This account was not part of the draw.",
+  DrawTooSoon: "The next draw cannot start yet. Draws run on a fixed cadence.",
+  NoParticipants: "Nobody has deposited yet, so there is nothing to draw over.",
+  WrongState: "The draw has moved on. Refresh and try again.",
+  TotalWeightNotPublished: "The draw's total weight has not been published yet.",
+  DisclosureTooSoon:
+    "The pool's total was published recently. Snapshots are limited to one an hour, so they cannot be read around a single deposit.",
+  PrincipalUnchanged: "The published total is already up to date.",
+  ThresholdNotSet: "This deployment has no tier threshold set yet.",
+  OwnableUnauthorizedAccount: "That action is the operator's.",
+  SenderNotAllowedToUseHandle:
+    "This account is not allowed to read that value — which is the point of it being encrypted.",
+};
+
 function humanise(errorName: string): string {
+  const explained = EXPLAINED[errorName];
+  if (explained !== undefined) return explained;
+
   const spaced = errorName.replace(/([a-z0-9])([A-Z])/g, "$1 $2");
   return spaced.charAt(0).toUpperCase() + spaced.slice(1).toLowerCase();
 }

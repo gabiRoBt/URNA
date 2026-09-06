@@ -77,6 +77,17 @@ contract DrawEngine is IDrawEngine, ZamaEthereumConfig, Ownable2Step {
     ///      migration.
     uint256 public maxSlice = 10;
 
+    /// @notice Shortest gap between the starts of two draws.
+    ///
+    /// @dev Short, because this is a testnet deployment a reviewer is meant
+    ///      to be able to exercise. A production pool would draw daily; what
+    ///      the interval is for is the same either way — it turns sealing
+    ///      from a privilege into a schedule.
+    uint64 public constant DRAW_INTERVAL = 5 minutes;
+
+    /// @notice When the current draw was sealed.
+    uint64 public lastSealAt;
+
     struct TierConfig {
         /// @dev Share of the draw's prize, in basis points.
         uint16 shareBps;
@@ -142,6 +153,7 @@ contract DrawEngine is IDrawEngine, ZamaEthereumConfig, Ownable2Step {
     error TooManyTiers(uint256 count);
     error SliceMustBePositive();
     error SliceOutOfRange(uint256 slice);
+    error DrawTooSoon(uint64 allowedAt);
 
     constructor(
         address owner_,
@@ -189,8 +201,27 @@ contract DrawEngine is IDrawEngine, ZamaEthereumConfig, Ownable2Step {
     }
 
     /// @inheritdoc IDrawEngine
-    function seal() external onlyOwner returns (uint256 drawId) {
+    ///
+    /// @dev Permissionless, on a cadence. Sealing used to be the operator's
+    ///      privilege, which made a draw something participants waited to be
+    ///      given rather than something the pool does on a schedule — and it
+    ///      meant a pool whose operator went quiet simply stopped drawing.
+    ///
+    ///      There is nothing here worth restricting. The snapshot is of
+    ///      whatever the ledger already holds, the point that decides the
+    ///      outcome is generated later and encrypted, and every step after
+    ///      this one was already open to anyone. What the caller chooses is
+    ///      the moment, and the interval takes even that down to a slot.
+    ///
+    ///      A draw left half-finished cannot wedge the pool, because nothing
+    ///      downstream needs this caller again: `publishTotalWeight`, `open`
+    ///      and `advance` are all permissionless, so anyone at all can carry a
+    ///      sealed draw to settlement.
+    function seal() external returns (uint256 drawId) {
         if (_tiers.length == 0) revert TiersNotConfigured();
+
+        uint64 allowedAt = lastSealAt + DRAW_INTERVAL;
+        if (lastSealAt != 0 && block.timestamp < allowedAt) revert DrawTooSoon(allowedAt);
 
         uint256 previous = _currentDrawId;
         if (previous != 0 && _draws[previous].state != DrawState.Settled) {
@@ -207,6 +238,7 @@ contract DrawEngine is IDrawEngine, ZamaEthereumConfig, Ownable2Step {
         Draw storage draw = _draws[drawId];
         draw.state = DrawState.Sealed;
         draw.participantCount = uint32(count);
+        lastSealAt = uint64(block.timestamp);
 
         emit DrawSealed(drawId, count, 0);
     }

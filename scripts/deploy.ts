@@ -110,6 +110,7 @@ async function main(): Promise<void> {
   const vault = await deploy<PrizeVault>(
     "PrizeVault",
     deployer.address,
+    await token.getAddress(),
     await yieldSource.getAddress(),
     await disclosure.getAddress(),
   );

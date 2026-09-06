@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   AwardPanel,
   DrawPanel,
+  type DrawStep,
   FaucetPanel,
   MovePanel,
   PoolPanel,
@@ -18,12 +19,13 @@ import { deployment, isDeployed, TOKEN_DECIMALS } from "@/lib/config";
 import {
   decryptOwn,
   decryptPublic,
+  decryptPublicWithProof,
   encryptAmount,
   resetAuthorisation,
   type TypedDataSigner,
 } from "@/lib/fhevm";
 import { shortAddress } from "@/lib/format";
-import { useProtocol } from "@/lib/useProtocol";
+import { DrawState, useProtocol } from "@/lib/useProtocol";
 import {
   connect,
   hasWallet,
@@ -117,6 +119,82 @@ export default function Page() {
     state.draw?.participantCount ?? state.participantCount,
     state.draw?.tierCount ?? 1,
   );
+
+  /**
+   * The next thing the draw needs, as one button.
+   *
+   * Four separate controls would have been a truer picture of the state
+   * machine and a worse thing to hand someone: at any moment exactly one of
+   * them does anything, and the other three are a quiz. The lifecycle is in
+   * the stage row above; this is only ever the next step.
+   */
+  const drawStep = ((): DrawStep | null => {
+    if (connection === null || contracts === null || observing || wrongChain) return null;
+
+    const draw = state.draw;
+    const acting = busy !== null;
+
+    if (draw === null || draw.state === DrawState.Settled) {
+      return {
+        label: "Start a draw",
+        busy: acting,
+        run: () =>
+          void run("seal", async () => {
+            await (await contracts.engine["seal"]!()).wait();
+            return "Sealed. The snapshot's weight has to be published next.";
+          }),
+      };
+    }
+
+    // Weight is published between sealing and opening, so a zero total on a
+    // sealed draw is what tells the two apart.
+    if (draw.state === DrawState.Sealed && draw.totalWeight === 0n) {
+      return {
+        label: "Publish the snapshot's weight",
+        busy: acting,
+        run: () =>
+          void run("weight", async () => {
+            const handle = (await contracts.ledger["sealedTotalWeight"]!(
+              draw.drawId,
+            )) as string;
+            const { value, proof } = await decryptPublicWithProof(
+              connection.injected,
+              handle,
+            );
+            await (
+              await contracts.engine["publishTotalWeight"]!(draw.drawId, value, proof)
+            ).wait();
+            return "Total weight published, and proved against the KMS.";
+          }),
+      };
+    }
+
+    if (draw.state === DrawState.Sealed) {
+      return {
+        label: "Open the draw",
+        busy: acting,
+        run: () =>
+          void run("open", async () => {
+            await (await contracts.engine["open"]!(draw.drawId)).wait();
+            return "Open. The draw point was generated encrypted, and nobody can read it.";
+          }),
+      };
+    }
+
+    if (draw.state === DrawState.Selecting) {
+      return {
+        label: "Advance the walk",
+        busy: acting,
+        run: () =>
+          void run("advance", async () => {
+            await (await contracts.engine["advance"]!(draw.drawId, 10)).wait();
+            return "Slice done. Every position in it was visited at identical cost.";
+          }),
+      };
+    }
+
+    return null;
+  })();
 
   return (
     <main className={`shell${observing ? " observing" : ""}`}>
@@ -285,7 +363,7 @@ export default function Page() {
         publishedAt={state.principalPublishedAt}
       />
 
-      <DrawPanel draw={state.draw} />
+      <DrawPanel draw={state.draw} step={drawStep ?? undefined} />
 
       {state.awardHandle !== null && connection !== null && contracts !== null && state.draw !== null && (
         <AwardPanel

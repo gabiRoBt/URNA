@@ -328,6 +328,13 @@ async function main(): Promise<void> {
 
   if ((await vault.unallocatedPrize()) < PRIZE) {
     step("Funding the prize reserve");
+
+    // The reserve is tokens now, not a number. The operator mints what it is
+    // about to put up and makes the vault an operator on the asset, exactly
+    // as a depositor does for the pool — a prize nobody can actually be paid
+    // is not a prize.
+    await send("mint prize", () => token.mint(operator.address, PRIZE));
+    await send("approve vault", () => token.setOperator(deployment.vault, deadline));
     await send("fund prize", () => vault.fundPrize(PRIZE));
   }
 

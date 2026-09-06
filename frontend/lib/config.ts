@@ -25,13 +25,13 @@ export const SEPOLIA: Deployment = {
   chainId: 11155111,
   chainName: "Sepolia",
   explorer: "https://sepolia.etherscan.io",
-  pool: "0x6787cd0dEa7A2705b5240AF5fc92D5688F3d8053",
-  engine: "0x37E36cb34E9E6Ae2dd151FC60E1d022ebfAF15F8",
-  vault: "0xF26aFc4E2A2cD1b68aCA1fb189D9C71f389D80F2",
-  ledger: "0x2d6A3911714b27344827a981a13a6e3A72b7b1B6",
-  disclosure: "0xd750E54E032e91a0365f539e36018D452A20b95a",
-  token: "0x3C26B14e6832fb40e8ACBEb1a5b7e2C1D7dD90Ad",
-  policy: "0x62Ff582C705Ced87871B0946220827Dd16fcf025",
+  pool: "0x13e56453dd53281C94532c1fdaa14FD70313BD1c",
+  engine: "0xd581DFc00b87ab6187BBCA87928087658E1f7b6F",
+  vault: "0x560a172d9105e907309a1463E1d17F0F68B8f54c",
+  ledger: "0x4ab0e0D2410c3a47778f473035204777F30d1E0A",
+  disclosure: "0x5882825a14012Ff157545bed0355ac7aC021d087",
+  token: "0xbdb5E117ccEE3AfEbCde8c95AD03f10B114DAD6E",
+  policy: "0x8fe805c98e37cFbB64F3640801bcff323C104556",
 };
 
 export const deployment = SEPOLIA;

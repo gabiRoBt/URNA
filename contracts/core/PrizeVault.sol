@@ -4,6 +4,7 @@ pragma solidity ^0.8.27;
 import {FHE, euint64} from "@fhevm/solidity/lib/FHE.sol";
 import {ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
 import {Ownable, Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import {IERC7984} from "@openzeppelin/confidential-contracts/interfaces/IERC7984.sol";
 
 import {IPrizeVault} from "../interfaces/IPrizeVault.sol";
 import {IYieldSource} from "../interfaces/IYieldSource.sol";
@@ -32,6 +33,9 @@ import {IDisclosurePolicy} from "../interfaces/IDisclosurePolicy.sol";
 /// flight, so the amount the engine treats as a public constant during the
 /// walk is backed for the walk's whole duration.
 contract PrizeVault is IPrizeVault, ZamaEthereumConfig, Ownable2Step {
+    /// @notice The confidential token prizes are held and paid in.
+    IERC7984 public immutable asset;
+
     /// @notice The engine permitted to lock prizes and credit awards.
     address public engine;
 
@@ -59,9 +63,13 @@ contract PrizeVault is IPrizeVault, ZamaEthereumConfig, Ownable2Step {
         _;
     }
 
-    constructor(address owner_, IYieldSource yieldSource_, IDisclosurePolicy disclosure_)
-        Ownable(owner_)
-    {
+    constructor(
+        address owner_,
+        IERC7984 asset_,
+        IYieldSource yieldSource_,
+        IDisclosurePolicy disclosure_
+    ) Ownable(owner_) {
+        asset = asset_;
         yieldSource = yieldSource_;
         disclosure = disclosure_;
     }
@@ -98,7 +106,23 @@ contract PrizeVault is IPrizeVault, ZamaEthereumConfig, Ownable2Step {
     ///      direction: it can only add. There is no path here that takes value
     ///      out of the vault, so an operator can subsidise a draw and can
     ///      never drain one.
+    ///      The tokens move here, they are not merely counted. The operator
+    ///      must have made this vault an operator on the asset first, exactly
+    ///      as a depositor does for the pool.
     function fundPrize(uint64 amount) external onlyOwner {
+        euint64 encrypted = FHE.asEuint64(amount);
+        FHE.allowThis(encrypted);
+        FHE.allowTransient(encrypted, address(asset));
+
+        // ERC7984 clamps a transfer to what the sender actually holds instead
+        // of reverting, because reverting would reveal the balance. So what
+        // arrives is what moved, not what was asked for — and it arrives as a
+        // ciphertext, while the reserve is a public figure. Funding what you
+        // do not hold therefore overstates the reserve rather than failing
+        // loudly. It can never reach principal: the vault pays out of its own
+        // balance, and the pool's deposits are held somewhere else entirely.
+        asset.confidentialTransferFrom(msg.sender, address(this), encrypted);
+
         unallocatedPrize += amount;
         emit PrizeFunded(amount, unallocatedPrize);
     }
@@ -147,6 +171,15 @@ contract PrizeVault is IPrizeVault, ZamaEthereumConfig, Ownable2Step {
         // Re-granting on claim keeps the award readable to its winner after
         // settlement, which is what makes a claim receipt meaningful.
         FHE.allow(award, msg.sender);
+
+        // And the money moves. Every participant of a draw holds an award —
+        // the tier prize for the winner, an encrypted zero for everyone else —
+        // so a loser's claim succeeds and transfers nothing. From outside, the
+        // two are one transaction of the same shape against the same token,
+        // which is what keeps the payout as private as the draw that produced
+        // it.
+        FHE.allowTransient(award, address(asset));
+        asset.confidentialTransfer(msg.sender, award);
 
         emit AwardClaimed(drawId, msg.sender);
     }

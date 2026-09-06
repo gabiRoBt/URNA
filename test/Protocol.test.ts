@@ -260,6 +260,10 @@ describe("Protocol properties", function () {
 
       await protocol.engine.seal();
 
+      // Past the cadence, so what rejects the second seal is the draw still
+      // being in flight rather than the clock.
+      await advanceTime(Number(await protocol.engine.DRAW_INTERVAL()));
+
       await expect(protocol.engine.seal()).to.be.revertedWithCustomError(
         protocol.engine,
         "WrongState",
@@ -387,6 +391,112 @@ describe("Protocol properties", function () {
       await expect(protocol.pool.requestPrincipalDisclosure()).to.be.revertedWithCustomError(
         protocol.pool,
         "NoPrincipalYet",
+      );
+    });
+  });
+
+  describe("Paying the prize", function () {
+    /**
+     * An award used to be a number the winner could read and nothing else —
+     * the vault held no tokens and `claim` moved none. These check that the
+     * money actually arrives, and that a losing claim is indistinguishable
+     * from a winning one in everything except the amount.
+     */
+
+    /** Funds the reserve with tokens the vault really holds. */
+    async function fundReserve(protocol: Protocol, amount: bigint): Promise<void> {
+      const vault = await protocol.vault.getAddress();
+      const deadline = (await ethers.provider.getBlock("latest"))!.timestamp + 86_400;
+
+      await protocol.token.mint(protocol.owner.address, amount);
+      await protocol.token.setOperator(vault, deadline);
+      await protocol.vault.fundPrize(amount);
+    }
+
+    /** An account's own confidential token balance, in the clear. */
+    async function tokenBalance(
+      protocol: Protocol,
+      account: (typeof protocol.participants)[number],
+    ): Promise<bigint> {
+      const handle = await protocol.token.confidentialBalanceOf(account.address);
+      if (handle === ethers.ZeroHash) return 0n;
+      return decryptFor(handle, await protocol.token.getAddress(), account);
+    }
+
+    it("moves the prize into the winner's own balance", async function () {
+      const protocol = await deployProtocol({ apyBps: 0 });
+      const winner = protocol.participants[0]!;
+
+      await depositAs(protocol, winner, 1_000_000n);
+      await protocol.pool.requestPrincipalDisclosure();
+      await publishDecrypted(await protocol.pool.totalPrincipalHandle(), (value, proof) =>
+        protocol.pool.publishPrincipal(value, proof),
+      );
+
+      await fundReserve(protocol, 250_000n);
+
+      const before = await tokenBalance(protocol, winner);
+      const drawId = await settleDraw(protocol);
+
+      // The only participant, so the only possible recipient.
+      await protocol.vault.connect(winner).claim(drawId);
+
+      expect(await tokenBalance(protocol, winner)).to.equal(before + 250_000n);
+    });
+
+    it("lets a loser claim, and moves nothing when they do", async function () {
+      const protocol = await deployProtocol({ apyBps: 0 });
+      const [first, second] = protocol.participants;
+
+      await depositAs(protocol, first!, 1_000_000n);
+      await depositAs(protocol, second!, 1_000_000n);
+      await protocol.pool.requestPrincipalDisclosure();
+      await publishDecrypted(await protocol.pool.totalPrincipalHandle(), (value, proof) =>
+        protocol.pool.publishPrincipal(value, proof),
+      );
+
+      await fundReserve(protocol, 250_000n);
+      const drawId = await settleDraw(protocol);
+
+      // Whoever lost is decided by a point nobody can read, so the test finds
+      // them rather than assuming.
+      const vaultAddress = await protocol.vault.getAddress();
+      for (const account of [first!, second!]) {
+        const award = await decryptFor(
+          await protocol.vault.awardOf(drawId, account.address),
+          vaultAddress,
+          account,
+        );
+        if (award !== 0n) continue;
+
+        const before = await tokenBalance(protocol, account);
+        await expect(protocol.vault.connect(account).claim(drawId)).to.not.be.reverted;
+        expect(await tokenBalance(protocol, account)).to.equal(before);
+        return;
+      }
+
+      expect.fail("both participants won, which one prize cannot do");
+    });
+  });
+
+  describe("Starting a draw", function () {
+    it("can be sealed by anyone, not only the operator", async function () {
+      const protocol = await deployProtocol({});
+      await depositAs(protocol, protocol.participants[0]!, 1_000_000n);
+
+      await expect(protocol.engine.connect(protocol.participants[1]!).seal()).to.not.be
+        .reverted;
+    });
+
+    it("refuses a draw before the cadence allows one", async function () {
+      const protocol = await deployProtocol({});
+      await depositAs(protocol, protocol.participants[0]!, 1_000_000n);
+
+      await protocol.engine.seal();
+
+      await expect(protocol.engine.seal()).to.be.revertedWithCustomError(
+        protocol.engine,
+        "DrawTooSoon",
       );
     });
   });

@@ -169,6 +169,27 @@ export async function decryptPublic(
 }
 
 /** Clears the cached signature, e.g. when the connected account changes. */
+/**
+ * Decrypts a public handle and keeps the proof that came with it.
+ *
+ * `decryptPublic` above answers "what is this value"; this answers "what is
+ * this value, and how do I convince a contract of it". The KMS signatures are
+ * what `publishTotalWeight` and `publishPrincipal` check, so a caller who
+ * throws them away cannot complete either.
+ */
+export async function decryptPublicWithProof(
+  provider: Eip1193Provider,
+  handle: string,
+): Promise<{ value: bigint; proof: string }> {
+  const instance = await getInstance(provider);
+  const results = await instance.publicDecrypt([handle]);
+
+  return {
+    value: readValue(results.clearValues, handle),
+    proof: results.decryptionProof,
+  };
+}
+
 export function resetAuthorisation(): void {
   authorisation = null;
 }

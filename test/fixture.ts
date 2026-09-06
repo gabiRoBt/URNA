@@ -131,6 +131,7 @@ export async function deployProtocol(options: DeployOptions = {}): Promise<Proto
   const vault = await deploy<PrizeVault>(
     "PrizeVault",
     owner.address,
+    await token.getAddress(),
     await yieldSource.getAddress(),
     await disclosure.getAddress(),
   );
